@@ -68,7 +68,7 @@ function drawBackprop(){
   const edge=(a,b,src,dst)=>{
     const A=P(a.p), B=P(b.p), ax=A[0]+(a.op==='in'?(small?14:22):R), bx=B[0]-R-2;
     ctx.strokeStyle=T.rule; ctx.lineWidth=1.6; ctx.beginPath(); ctx.moveTo(ax,A[1]); ctx.lineTo(bx,B[1]); ctx.stroke();
-    const mx=ax+(bx-ax)*0.5, my=A[1]+(B[1]-A[1])*0.5;
+    const t=a.op==='in'?0.3:0.5, mx=ax+(bx-ax)*t, my=A[1]+(B[1]-A[1])*t;
     if (S.shown.has(src)) label(ctx,fmt(S.val[src]),mx,my-9,T.v1,fw,'center');
     const k=src+'>'+dst; if (k in S.eg) label(ctx,fmt(S.eg[k]),mx,my+10,T.v2,fw,'center');
   };
