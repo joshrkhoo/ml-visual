@@ -1,0 +1,2124 @@
+<title>Gradient Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Interactive visualisations of COMP 4211 Machine Learning: linear models, model selection, perceptrons, backprop, MLPs and CNNs.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:ital,wght@0,400;0,600;0,700;1,400&display=swap">
+<script>
+window.MathJax = {
+  tex: { inlineMath: [['\\(','\\)']], displayMath: [['\\[','\\]']] },
+  svg: { fontCache: 'global' },
+  options: { enableMenu: false }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-svg.js" defer></script>
+<style>
+/* Layout: masthead, topic sidebar (one entry per lecture idea), then each topic reads top-down:
+   key formulas → figures → controls + live numbers. Single column on phones.
+   Colour: +1 class / forward values = v1 (blue), −1 class / gradients = v2 (orange), learner state = acc (teal). */
+:root{
+  --bg:#F1F4F3; --panel:#FFFFFF; --ink:#141D1C; --muted:#56635F; --rule:#D0DAD7; --grid:#E6ECEA;
+  --v1:#1F66B8; --v2:#C8510E; --one:#6B7672; --acc:#0B7A68; --ok:#3B7D22; --warn:#B45309; --bad:#B42335;
+  --v1-soft:rgba(31,102,184,.13); --v2-soft:rgba(200,81,14,.13); --acc-soft:rgba(11,122,104,.12); --ok-soft:rgba(59,125,34,.13); --warn-soft:rgba(180,83,9,.12); --bad-soft:rgba(180,35,53,.12);
+  --f-display:"Bricolage Grotesque","Avenir Next",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0D1312; --panel:#141C1B; --ink:#E3ECE9; --muted:#93A39E; --rule:#2A3634; --grid:#1C2624;
+  --v1:#64A6EE; --v2:#F28D52; --one:#9AA6A2; --acc:#3CC4AA; --ok:#7CC35C; --warn:#F0B35A; --bad:#F07083;
+  --v1-soft:rgba(100,166,238,.17); --v2-soft:rgba(242,141,82,.17); --acc-soft:rgba(60,196,170,.15); --ok-soft:rgba(124,195,92,.15); --warn-soft:rgba(240,179,90,.15); --bad-soft:rgba(240,112,131,.15);
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#0D1312; --panel:#141C1B; --ink:#E3ECE9; --muted:#93A39E; --rule:#2A3634; --grid:#1C2624;
+  --v1:#64A6EE; --v2:#F28D52; --one:#9AA6A2; --acc:#3CC4AA; --ok:#7CC35C; --warn:#F0B35A; --bad:#F07083;
+  --v1-soft:rgba(100,166,238,.17); --v2-soft:rgba(242,141,82,.17); --acc-soft:rgba(60,196,170,.15); --ok-soft:rgba(124,195,92,.15); --warn-soft:rgba(240,179,90,.15); --bad-soft:rgba(240,112,131,.15);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.55;margin:0}
+.wrap{max-width:1440px;margin:0 auto;padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px));padding-block:28px 64px}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:var(--f-display);font-weight:700;font-size:clamp(2.2rem,5vw,3.3rem);line-height:1.02;letter-spacing:-.02em;margin:.25rem 0 .45rem;text-wrap:balance}
+h1 em{font-style:normal;color:var(--acc)}
+.lede{max-width:66ch;color:var(--muted);margin:0}
+.shell{display:grid;grid-template-columns:250px minmax(0,1fr);gap:32px;align-items:start;margin-top:24px}
+.side{position:sticky;top:14px;max-height:calc(100vh - 28px);overflow-y:auto;scrollbar-width:thin;padding:2px 4px 8px 0}
+.side-toggle{display:none}
+.find{width:100%;font:inherit;font-size:14px;padding:6px 10px;border:1px solid var(--rule);border-radius:6px;background:var(--panel);color:var(--ink);margin:0 0 8px}
+.find:focus-visible{outline:2px solid var(--acc);outline-offset:0}
+.chap{border-top:1px solid var(--rule);padding:3px 0}
+.chap:first-child{border-top:0}
+.chap-h{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:9px;width:100%;padding:8px 6px;border-radius:6px;font-size:14px;font-weight:600;color:var(--ink);line-height:1.3}
+.chap-h:hover{background:var(--grid)}
+.chap-h .cn{font-family:var(--f-mono);font-size:11px;font-weight:600;padding:2px 6px;border-radius:4px;flex:none}
+.chap-h .chev{margin-left:auto;color:var(--muted);font-size:12px;transition:transform .15s}
+.chap[data-open="true"] .chev{transform:rotate(90deg)}
+.chap-items{display:none;gap:1px;padding:0 0 6px}
+.chap[data-open="true"] .chap-items{display:grid}
+.topic{all:unset;box-sizing:border-box;cursor:pointer;display:flex;gap:9px;align-items:baseline;padding:6px 8px 6px 12px;border-radius:6px;font-size:15px;color:var(--muted);border-left:2px solid transparent}
+.topic .sec{font-family:var(--f-mono);font-size:11px;min-width:2.2em;flex:none}
+.topic:hover{background:var(--grid);color:var(--ink)}
+.topic[aria-current="page"]{background:var(--acc-soft);color:var(--ink);font-weight:600;border-left-color:var(--acc)}
+.chap-h:focus-visible,.topic:focus-visible,.side-toggle:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
+.ch2 .cn{background:var(--v1-soft);color:var(--v1)} .ch3 .cn{background:var(--grid);color:var(--ink)} .ch4 .cn{background:var(--acc-soft);color:var(--acc)} .ch5 .cn{background:var(--v2-soft);color:var(--v2)}
+.pager{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:28px}
+.pager button{all:unset;box-sizing:border-box;cursor:pointer;border:1px solid var(--rule);border-radius:10px;padding:10px 14px;background:var(--panel);min-width:0}
+.pager button:hover{border-color:var(--muted)}
+.pager button:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+.pager .dir{display:block;font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.pager .nx{text-align:right;grid-column:2}
+@media (max-width:900px){
+  .shell{grid-template-columns:minmax(0,1fr);gap:16px;margin-top:16px}
+  .side{top:env(safe-area-inset-top,0px);z-index:5;max-height:none;overflow:visible;background:var(--bg);padding:8px 0;border-bottom:1px solid var(--rule)}
+  .side-toggle{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:10px;width:100%;padding:9px 12px;border:1px solid var(--rule);border-radius:8px;background:var(--panel);font-weight:600;font-size:15px}
+  .side-toggle .lbl{font-family:var(--f-mono);font-size:11px;font-weight:400;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+  .side-toggle .cur{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .side-toggle .chev{color:var(--muted)}
+  .toc{display:none;position:absolute;left:0;right:0;top:calc(100% - 2px);background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:10px;max-height:72vh;overflow-y:auto;box-shadow:0 10px 30px rgba(0,0,0,.18)}
+  .side[data-open="true"] .toc{display:block}
+}
+@media (max-width:520px){ .pager{grid-template-columns:1fr} .pager .nx{grid-column:1} }
+h2{font-family:var(--f-display);font-weight:500;font-size:1.9rem;line-height:1.12;letter-spacing:-.01em;margin:0 0 .35rem;text-wrap:balance}
+.intro{max-width:68ch;margin:0 0 14px;color:var(--muted)}
+.key{background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:12px 18px;margin:0 0 16px;display:grid;gap:4px}
+.key .eq{display:flex;flex-wrap:wrap;align-items:center;gap:6px 40px;padding:2px 0}
+.key .eq > span{min-width:0;max-width:100%;overflow-x:auto;overflow-y:hidden}
+.key > *{min-width:0}
+.key .from{font-size:13px;color:var(--muted)}
+.key .from b{color:var(--acc);font-weight:600}
+.figs{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:14px}
+.figs.three{grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr))}
+.fig{background:var(--panel);border:1px solid var(--rule);border-radius:10px;overflow:hidden;min-width:0;margin:0}
+.fig.full{grid-column:1/-1}
+.fig canvas{display:block;width:100%;max-width:100%;aspect-ratio:1/0.86;touch-action:none}
+.fig canvas.wide{aspect-ratio:2.6/1}
+.fig canvas.strip{aspect-ratio:4.2/1;touch-action:auto}
+@media (max-width:640px){.fig canvas.wide{aspect-ratio:1.5/1} .fig canvas.strip{aspect-ratio:2.4/1}}
+.fig figcaption{font-size:14px;color:var(--muted);padding:9px 14px 11px;border-top:1px solid var(--rule)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:14px;height:3px;border-radius:2px;display:inline-block;background:currentColor}
+.sw.dot{width:8px;height:8px;border-radius:50%}
+.sw.ring{width:9px;height:9px;border-radius:50%;background:none;border:2px solid currentColor}
+.sw.dash{background:none;border-top:2px dashed currentColor;height:0}
+.sw.box{width:11px;height:11px;border-radius:2px}
+.below{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:14px;margin-top:14px;align-items:start}
+.card{background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:14px 16px;min-width:0}
+.card h3{font-size:12px;font-family:var(--f-mono);font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 10px}
+.card * + h3{margin-top:16px}
+.card p{margin:.45rem 0}
+.ctrl{display:grid;grid-template-columns:5.5rem 1fr 4rem;gap:6px 10px;align-items:center;margin-bottom:6px}
+.ctrl label{font-size:15px}
+.ctrl output{font-family:var(--f-mono);font-size:13px;text-align:right;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--acc)}
+.btns{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px}
+.btn{font:inherit;font-size:14px;padding:5px 11px;border-radius:6px;border:1px solid var(--rule);background:var(--bg);color:var(--ink);cursor:pointer}
+.btn:hover{border-color:var(--muted)}
+.btn:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+.btn.primary{background:var(--acc);border-color:var(--acc);color:var(--panel);font-weight:600}
+.btn:disabled{opacity:.4;cursor:default}
+.checks{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:15px;margin:4px 0 8px}
+.checks label{display:flex;gap:6px;align-items:center;cursor:pointer}
+.checks input{accent-color:var(--acc)}
+.seg{display:inline-flex;border:1px solid var(--rule);border-radius:6px;overflow:hidden;flex-wrap:wrap;margin:0 0 8px}
+.seg button{all:unset;cursor:pointer;padding:4px 11px;font-size:14px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--acc-soft);color:var(--ink);font-weight:600}
+.seg button:focus-visible{outline:2px solid var(--acc);outline-offset:-2px}
+.row{display:flex;align-items:center;gap:6px 10px;flex-wrap:wrap}
+.row > .lbl{font-size:13px;color:var(--muted);font-family:var(--f-mono);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+.mono,.num{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.c1{color:var(--v1)} .c2{color:var(--v2)} .ca{color:var(--acc)} .co{color:var(--one)} .ok{color:var(--ok)} .bad{color:var(--bad)} .warn{color:var(--warn)}
+.stats{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-size:15px;align-items:baseline}
+.stats dt{color:var(--muted)}
+.stats dd{margin:0;font-family:var(--f-mono);font-size:14px;font-variant-numeric:tabular-nums;text-align:right;overflow-wrap:anywhere}
+.pill{display:inline-block;font-size:13px;font-weight:600;padding:2px 9px;border-radius:99px}
+.pill.good{background:var(--ok-soft);color:var(--ok)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.pill.info{background:var(--acc-soft);color:var(--acc)}
+.scroll{overflow-x:auto}
+table.q{border-collapse:collapse;width:100%;font-size:14px}
+table.q th,table.q td{padding:4px 7px;border-bottom:1px solid var(--grid);text-align:right;font-family:var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+table.q th{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+table.q tr.cur td{background:var(--acc-soft)}
+table.q tr:last-child td{border-bottom:0}
+.kgrid{display:inline-grid;grid-template-columns:repeat(3,4.6rem);gap:4px}
+.kgrid input{width:100%;font-family:var(--f-mono);font-size:13px;padding:4px 5px;border:1px solid var(--rule);border-radius:4px;background:var(--bg);color:var(--ink);text-align:right}
+.kgrid input:focus-visible,.num-in:focus-visible{outline:2px solid var(--acc);outline-offset:0}
+.num-in{width:4.6rem;font-family:var(--f-mono);font-size:13px;padding:3px 5px;border:1px solid var(--rule);border-radius:4px;background:var(--bg);color:var(--ink);text-align:right}
+.hint{font-size:14px;color:var(--muted)}
+code{font-family:var(--f-mono);font-size:.88em}
+.panel:focus{outline:none}
+mjx-container{color:inherit}
+mjx-container[display="true"]{margin:.35em 0!important}
+footer{margin-top:36px;font-size:13px;color:var(--muted);border-top:1px solid var(--rule);padding-top:12px}
+</style>
+<div class="wrap">
+<header>
+  <div class="eyebrow">COMP 4211 · Machine Learning · Lectures 2–5</div>
+  <h1>Gradient <em>Lab</em></h1>
+  <p class="lede">Drag points, step the learning rules and watch the losses fall. Each topic is one idea from the lectures, from fitting a line by gradient descent to the convolutions inside a CNN.</p>
+</header>
+
+<div class="shell">
+<nav class="side" aria-label="Topics" data-open="false">
+  <button class="side-toggle" aria-expanded="false" aria-controls="toc"><span class="lbl">Topic</span><span class="cur" id="toc-cur"></span><span class="chev" aria-hidden="true">▾</span></button>
+  <div class="toc" id="toc">
+    <input class="find" id="toc-find" type="search" placeholder="Find a topic…" aria-label="Find a topic" autocomplete="off">
+    <div id="toc-list"></div>
+  </div>
+</nav>
+<main>
+
+<!-- ================= 2.1 LINEAR REGRESSION ================= -->
+<section class="panel" id="linreg" tabindex="-1" hidden>
+  <h2>Fitting a line by gradient descent</h2>
+  <p class="intro">Each weight vector \(\mathbf w=[w_1,w_2]\) is one line on the left and one point on the right. Gradient descent walks downhill on the right; the line on the left follows. Drag the data, or drag the point on the loss surface.</p>
+  <div class="key">
+    <div class="eq"><span>\(\displaystyle f_{\mathbf w}(x)=\mathbf w\cdot\phi(x),\;\; \phi(x)=[1,x]\)</span><span>\(\displaystyle \text{TrainLoss}(\mathbf w)=\frac1{|D|}\sum_{(x,y)\in D}\big(\mathbf w\cdot\phi(x)-y\big)^2\)</span><span>\(\displaystyle \mathbf w\leftarrow\mathbf w-\eta\,\underbrace{\frac{2}{|D|}\sum\big(\mathbf w\cdot\phi(x)-y\big)\phi(x)}_{\nabla_{\mathbf w}\text{TrainLoss}}\)</span></div>
+    <div class="from">Lecture 2, slides 8–15. The lecture's data \((1,1),(2,3),(4,3)\) with \(\mathbf w=[1,0.57]\) gives TrainLoss \(=0.38\).</div>
+  </div>
+  <div class="figs">
+    <figure class="fig"><canvas id="cv-lr-data" aria-label="Training data and current line; drag points, click to add, double-click to remove"></canvas>
+      <figcaption class="legend"><span class="c1"><i class="sw dot"></i>training example</span><span class="ca"><i class="sw"></i>\(f_{\mathbf w}(x)\)</span><span class="c2"><i class="sw dash"></i>residual</span></figcaption></figure>
+    <figure class="fig"><canvas id="cv-lr-loss" aria-label="TrainLoss over weight space; drag to set w"></canvas>
+      <figcaption class="legend"><span class="co"><i class="sw box" style="background:var(--grid)"></i>loss contours</span><span class="ca"><i class="sw"></i>gradient-descent path</span><span class="c2"><i class="sw"></i>−η∇ (next step)</span><span>× least-squares minimum</span></figcaption></figure>
+  </div>
+  <div class="below">
+    <div class="card"><h3>Gradient descent</h3>
+      <div class="ctrl"><label for="lr-eta">step η</label><input type="range" id="lr-eta" min="0.01" max="0.4" step="0.01" value="0.1"><output id="lr-eta-o"></output></div>
+      <div class="btns"><button class="btn primary" id="lr-run">Run</button><button class="btn" id="lr-step">One step</button><button class="btn" id="lr-reset">Back to [1, 0.57]</button><button class="btn" id="lr-data">Lecture data</button></div>
+      <p class="hint">Push η past about 0.3 on the lecture data and the steps overshoot the valley and diverge.</p>
+    </div>
+    <div class="card"><h3>Live</h3><dl class="stats" id="lr-stats"></dl></div>
+  </div>
+</section>
+
+<!-- ================= 2.2 LINEAR CLASSIFICATION ================= -->
+<section class="panel" id="linclf" tabindex="-1" hidden>
+  <h2>Score, margin and the hinge loss</h2>
+  <p class="intro">The classifier is \(\text{sign}(\mathbf w\cdot\phi(x))\), so \(\mathbf w\) points into the +1 side and the boundary is perpendicular to it. Drag the tip of \(\mathbf w\). The right plot puts every example at its margin: the zero-one loss is flat there, so only hinge and logistic give gradient descent anything to follow.</p>
+  <div class="key">
+    <div class="eq"><span>\(\displaystyle \text{score}=\mathbf w\cdot\phi(x)\)</span><span>\(\displaystyle \text{margin}=(\mathbf w\cdot\phi(x))\,y\)</span><span>\(\displaystyle \text{Loss}_{0\text{-}1}=\mathbf 1[\text{margin}\le 0]\)</span><span>\(\displaystyle \text{Loss}_{\text{hinge}}=\max\{1-\text{margin},0\}\)</span><span>\(\displaystyle \text{Loss}_{\text{logistic}}=\log(1+e^{-\text{margin}})\)</span></div>
+    <div class="from">Lecture 2, slides 17–27, with \(\phi(x)=[x_1,x_2]\) and the training set \(([0,2],+1),([-2,0],+1),([1,-1],-1)\).</div>
+  </div>
+  <div class="figs">
+    <figure class="fig"><canvas id="cv-lc-plane" aria-label="Input plane with decision boundary; drag the tip of w, drag points, click to add"></canvas>
+      <figcaption class="legend"><span class="c1"><i class="sw dot"></i>y = +1</span><span class="c2"><i class="sw dot"></i>y = −1</span><span class="ca"><i class="sw"></i>w and boundary w·φ(x) = 0</span><span class="bad"><i class="sw ring"></i>misclassified</span></figcaption></figure>
+    <figure class="fig"><canvas id="cv-lc-loss" aria-label="Loss as a function of margin, with each training example placed at its margin"></canvas>
+      <figcaption class="legend"><span class="co"><i class="sw"></i>zero-one</span><span class="ca"><i class="sw"></i>hinge</span><span class="c1"><i class="sw dash"></i>logistic</span><span><i class="sw dot"></i>an example at its margin</span></figcaption></figure>
+  </div>
+  <div class="below">
+    <div class="card"><h3>Train</h3>
+      <div class="row"><span class="lbl">Loss</span><div class="seg" id="lc-loss"><button data-v="hinge" aria-pressed="true">Hinge</button><button data-v="logistic" aria-pressed="false">Logistic</button></div></div>
+      <div class="row"><span class="lbl">Click adds</span><div class="seg" id="lc-cls"><button data-v="1" aria-pressed="true">y = +1</button><button data-v="-1" aria-pressed="false">y = −1</button></div></div>
+      <div class="ctrl"><label for="lc-eta">step η</label><input type="range" id="lc-eta" min="0.02" max="1" step="0.02" value="0.2"><output id="lc-eta-o"></output></div>
+      <div class="btns"><button class="btn primary" id="lc-run">Run</button><button class="btn" id="lc-step">One step</button><button class="btn" id="lc-reset">w = [0.5, 1]</button><button class="btn" id="lc-data">Lecture data</button><button class="btn" id="lc-more">Random data</button></div>
+    </div>
+    <div class="card"><h3>Live</h3><dl class="stats" id="lc-stats"></dl></div>
+  </div>
+</section>
+
+<!-- ================= 3.1 OVERFITTING ================= -->
+<section class="panel" id="overfit" tabindex="-1" hidden>
+  <h2>Overfitting and the bias–variance tradeoff</h2>
+  <p class="intro">Fit polynomials of growing degree to noisy samples of \(\sin 2\pi x\). The faint curves are fits to other training sets drawn from the same distribution: their spread is the variance, and the gap between their average and the truth is the bias.</p>
+  <div class="key">
+    <div class="eq"><span>\(\displaystyle \text{error}_S(h)=\frac1n\sum_{x\in S}\big(h(x)-y\big)^2\)</span><span>\(\displaystyle \text{error}_{\mathcal D}(h)=\mathbb E_{x\sim\mathcal D}\big(h(x)-y\big)^2\)</span><span>\(\displaystyle \mathbb E\,\text{error}_{\mathcal D}=\underbrace{(\bar h-f)^2}_{\text{bias}^2}+\underbrace{\mathbb E(h-\bar h)^2}_{\text{variance}}+\sigma^2\)</span></div>
+    <div class="from">Lecture 3, slides 3–9. \(h\) overfits when another \(h'\) has larger training error but smaller error over \(\mathcal D\).</div>
+  </div>
+  <div class="figs">
+    <figure class="fig"><canvas id="cv-of-fit" aria-label="Training data, true function and polynomial fit"></canvas>
+      <figcaption class="legend"><span class="c1"><i class="sw dot"></i>training set</span><span class="co"><i class="sw dash"></i>true f(x)</span><span class="ca"><i class="sw"></i>fitted h(x)</span><span class="ca" style="opacity:.6"><i class="sw"></i>fits to other training sets</span></figcaption></figure>
+    <figure class="fig"><canvas id="cv-of-err" aria-label="Training and testing error against polynomial degree"></canvas>
+      <figcaption class="legend"><span class="c1"><i class="sw"></i>training error</span><span class="c2"><i class="sw"></i>testing error</span><span class="co"><i class="sw dash"></i>bias²</span><span class="ca"><i class="sw dash"></i>variance</span></figcaption></figure>
+  </div>
+  <div class="below">
+    <div class="card"><h3>Model and data</h3>
+      <div class="ctrl"><label for="of-deg">degree</label><input type="range" id="of-deg" min="0" max="12" step="1" value="3"><output id="of-deg-o"></output></div>
+      <div class="ctrl"><label for="of-n">n train</label><input type="range" id="of-n" min="8" max="60" step="1" value="15"><output id="of-n-o"></output></div>
+      <div class="ctrl"><label for="of-sd">noise σ</label><input type="range" id="of-sd" min="0" max="0.6" step="0.02" value="0.24"><output id="of-sd-o"></output></div>
+      <div class="checks"><label><input type="checkbox" id="of-many" checked> show fits to 20 other training sets</label></div>
+      <div class="btns"><button class="btn" id="of-new">New training set</button></div>
+    </div>
+    <div class="card"><h3>Live</h3><dl class="stats" id="of-stats"></dl></div>
+  </div>
+</section>
+
+<!-- ================= 3.2 CROSS-VALIDATION ================= -->
+<section class="panel" id="cv" tabindex="-1" hidden>
+  <h2>k-fold cross-validation</h2>
+  <p class="intro">The \(m\) examples are split into \(k\) folds. Each round trains on \(k-1\) folds and validates on the one left out, so every example is validated exactly once. Click a round to see its split; the averaged validation error picks the degree.</p>
+  <div class="key">
+    <div class="eq"><span>\(\displaystyle \text{CV}_k(d)=\frac1k\sum_{i=1}^{k}\text{error}_{\text{fold }i}\big(h_d^{(-i)}\big)\)</span><span>\(\displaystyle \text{training runs}=k\times(\text{number of models})\)</span><span>\(\displaystyle k=m\;\Rightarrow\;\text{leave-one-out}\)</span></div>
+    <div class="from">Lecture 3, slides 10–13. Each example trains in \(k-1\) rounds, so a fraction \(1-\tfrac1k\) of the data is used for training each time.</div>
+  </div>
+  <div class="figs">
+    <figure class="fig full"><canvas class="strip" id="cv-cv-folds" aria-label="Folds by round; click a round"></canvas>
+      <figcaption class="legend"><span class="c1"><i class="sw box" style="background:currentColor"></i>training fold</span><span class="c2"><i class="sw box" style="background:currentColor"></i>validation fold</span><span>click a round to inspect it</span></figcaption></figure>
+    <figure class="fig"><canvas id="cv-cv-fit" aria-label="Fit for the selected round"></canvas>
+      <figcaption class="legend"><span class="c1"><i class="sw dot"></i>trained on</span><span class="c2"><i class="sw ring"></i>held out</span><span class="ca"><i class="sw"></i>fit on this round's training folds</span></figcaption></figure>
+    <figure class="fig"><canvas id="cv-cv-curve" aria-label="Cross-validation error against degree"></canvas>
+      <figcaption class="legend"><span class="ca"><i class="sw"></i>CV error (mean of folds)</span><span class="ca" style="opacity:.55"><i class="sw dot"></i>one fold</span><span class="c2"><i class="sw dash"></i>true test error</span><span class="c1"><i class="sw"></i>training error</span></figcaption></figure>
+  </div>
+  <div class="below">
+    <div class="card"><h3>Setup</h3>
+      <div class="ctrl"><label for="cv-k">k folds</label><input type="range" id="cv-k" min="2" max="30" step="1" value="5"><output id="cv-k-o"></output></div>
+      <div class="ctrl"><label for="cv-deg">degree</label><input type="range" id="cv-deg" min="0" max="10" step="1" value="3"><output id="cv-deg-o"></output></div>
+      <div class="btns"><button class="btn" id="cv-loo">Leave-one-out (k = m)</button><button class="btn" id="cv-best">Use CV's choice</button><button class="btn" id="cv-new">New data</button></div>
+    </div>
+    <div class="card"><h3>Live</h3><dl class="stats" id="cv-stats"></dl></div>
+  </div>
+</section>
+
+<!-- ================= 4.1 PERCEPTRON ================= -->
+<section class="panel" id="perceptron" tabindex="-1" hidden>
+  <h2>The perceptron learning rule</h2>
+  <p class="intro">Examples are visited in turn. A correct prediction leaves the weights alone; a mistake moves them by \(\alpha I (T-O)\), which tilts and shifts the boundary toward the right answer. The default run reproduces the lecture's trace and stops at \(\mathbf w=(1,-3,4)\).</p>
+  <div class="key">
+    <div class="eq"><span>\(\displaystyle O=\text{step}\Big(\sum_{j=0}^n w_jI_j\Big),\;\; I_0=1,\;w_0=-\theta\)</span><span>\(\displaystyle w_j\leftarrow w_j+\alpha\,I_j\,(T-O)\;\;\forall j\)</span></div>
+    <div class="from">Lecture 4 (perceptron), slides 6–22. If the examples are linearly separable the rule converges in finitely many steps from any start.</div>
+  </div>
+  <div class="figs">
+    <figure class="fig"><canvas id="cv-pc-plane" aria-label="Examples and the perceptron boundary; drag examples"></canvas>
+      <figcaption class="legend"><span class="c1"><i class="sw dot"></i>T = 1</span><span class="c2"><i class="sw dot"></i>T = 0</span><span class="ca"><i class="sw"></i>boundary (O = 1 side shaded)</span><span class="co"><i class="sw dash"></i>before last update</span></figcaption></figure>
+    <figure class="fig"><canvas id="cv-pc-w" aria-label="Weights against iteration"></canvas>
+      <figcaption class="legend"><span class="co"><i class="sw"></i>w₀</span><span class="c1"><i class="sw"></i>w₁</span><span class="c2"><i class="sw"></i>w₂</span><span class="bad"><i class="sw dot"></i>a mistake (weights change)</span></figcaption></figure>
+  </div>
+  <div class="below">
+    <div class="card"><h3>Learn</h3>
+      <div class="row"><span class="lbl">Data</span><div class="seg" id="pc-set"><button data-v="lecture" aria-pressed="true">Lecture (apples)</button><button data-v="sep" aria-pressed="false">Random separable</button><button data-v="non" aria-pressed="false">Not separable</button></div></div>
+      <div class="ctrl"><label for="pc-alpha">rate α</label><input type="range" id="pc-alpha" min="0.1" max="2" step="0.1" value="1"><output id="pc-alpha-o"></output></div>
+      <div class="btns"><button class="btn primary" id="pc-run">Run</button><button class="btn" id="pc-step">One example</button><button class="btn" id="pc-reset">Weights to 0</button><button class="btn" id="pc-rand">Random weights</button></div>
+      <p id="pc-status"></p>
+    </div>
+    <div class="card"><h3>Trace</h3><div class="scroll"><table class="q" id="pc-trace"></table></div></div>
+  </div>
+</section>
+
+<!-- ================= 4.2 BOOLEAN FUNCTIONS ================= -->
+<section class="panel" id="boolean" tabindex="-1" hidden>
+  <h2>AND, OR, NOT, and why XOR needs a hidden unit</h2>
+  <p class="intro">A single perceptron draws one line, so it can only represent linearly separable functions. Set the weights by hand or let the rule learn them. XOR has no separating line; the lecture's two-layer network solves it by feeding a hidden AND unit into the output with weight −2.</p>
+  <div class="key">
+    <div class="eq"><span>\(\displaystyle O=\text{step}(w_1I_1+w_2I_2-\theta)\)</span><span>\(\displaystyle y_3=\text{step}(x_1+x_2-1.5)\)</span><span>\(\displaystyle y=\text{step}(x_1+x_2-2y_3-0.5)\)</span></div>
+    <div class="from">Lecture 4 (perceptron), slides 8–14, and Lecture 4 (MLP), slide 2.</div>
+  </div>
+  <div class="figs">
+    <figure class="fig"><canvas id="cv-bo-single" aria-label="Single perceptron on the four Boolean inputs"></canvas>
+      <figcaption class="legend"><span class="c1"><i class="sw dot"></i>target 1</span><span class="c2"><i class="sw dot"></i>target 0</span><span class="ca"><i class="sw"></i>w₁I₁ + w₂I₂ = θ</span><span class="bad"><i class="sw ring"></i>wrong output</span></figcaption></figure>
+    <figure class="fig"><canvas id="cv-bo-net" aria-label="Two-layer XOR network; click an input corner"></canvas>
+      <figcaption class="legend"><span class="ca"><i class="sw"></i>hidden unit y₃ fires above its line</span><span class="c1"><i class="sw box" style="background:var(--v1-soft)"></i>network outputs 1</span><span>click a corner to trace it</span></figcaption></figure>
+  </div>
+  <div class="below">
+    <div class="card"><h3>Single perceptron</h3>
+      <div class="row"><span class="lbl">Target</span><div class="seg" id="bo-fn"><button data-v="AND" aria-pressed="true">AND</button><button data-v="OR" aria-pressed="false">OR</button><button data-v="NAND" aria-pressed="false">NAND</button><button data-v="NOT" aria-pressed="false">NOT I₁</button><button data-v="XOR" aria-pressed="false">XOR</button></div></div>
+      <div class="ctrl"><label for="bo-w1">w₁</label><input type="range" id="bo-w1" min="-2" max="2" step="0.1" value="1"><output id="bo-w1-o"></output></div>
+      <div class="ctrl"><label for="bo-w2">w₂</label><input type="range" id="bo-w2" min="-2" max="2" step="0.1" value="1"><output id="bo-w2-o"></output></div>
+      <div class="ctrl"><label for="bo-th">θ</label><input type="range" id="bo-th" min="-2" max="2.5" step="0.1" value="1.5"><output id="bo-th-o"></output></div>
+      <div class="btns"><button class="btn primary" id="bo-learn">Learn with the rule</button><button class="btn" id="bo-zero">Weights to 0</button></div>
+      <p id="bo-status"></p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 4.3 ADALINE: LEARNING RATE & SGD ================= -->
+<section class="panel" id="adaline" tabindex="-1" hidden>
+  <h2>Learning rate, batch GD and SGD</h2>
+  <p class="intro">An Adaline is a linear unit, so its error surface is a bowl with one global minimum. A small η creeps down the valley; a large η zig-zags across it, and past \(2/\lambda_{\max}\) it diverges. SGD uses one example per update: cheap and noisy. Mini-batches sit in between.</p>
+  <div class="key">
+    <div class="eq"><span>\(\displaystyle o=\sum_{i=0}^n w_ix_i\)</span><span>\(\displaystyle E(\mathbf w)=\frac1{2N}\sum_{d}(t_d-o_d)^2\)</span><span>\(\displaystyle \mathbf w\leftarrow\mathbf w-\eta\,\nabla_{\!B}E,\quad \nabla_{\!B}E=-\frac1{|B|}\sum_{d\in B}(t_d-o_d)\,\mathbf x_d\)</span></div>
+    <div class="from">Lecture 4 (Adaline), slides 2–9. Batch: \(B\) = all \(N\) examples. SGD: \(|B|=1\). Mini-batch: \(|B|=b\).</div>
+  </div>
+  <div class="figs">
+    <figure class="fig"><canvas id="cv-ad-surf" aria-label="Error surface over w0 and w1 with descent paths; click to choose the start"></canvas>
+      <figcaption class="legend"><span class="ca"><i class="sw"></i>batch GD</span><span class="c2"><i class="sw"></i>SGD</span><span class="c1"><i class="sw"></i>mini-batch</span><span>click to move the start</span></figcaption></figure>
+    <figure class="fig"><canvas id="cv-ad-curve" aria-label="Error against update number"></canvas>
+      <figcaption class="legend"><span class="ca"><i class="sw"></i>batch GD</span><span class="c2"><i class="sw"></i>SGD</span><span class="c1"><i class="sw"></i>mini-batch</span><span>log scale</span></figcaption></figure>
+  </div>
+  <div class="below">
+    <div class="card"><h3>Optimiser</h3>
+      <div class="ctrl"><label for="ad-eta">rate η</label><input type="range" id="ad-eta" min="-2.5" max="0" step="0.05" value="-0.85"><output id="ad-eta-o"></output></div>
+      <div class="ctrl"><label for="ad-b">batch b</label><input type="range" id="ad-b" min="2" max="20" step="1" value="5"><output id="ad-b-o"></output></div>
+      <div class="checks"><label><input type="checkbox" id="ad-gd" checked> batch GD</label><label><input type="checkbox" id="ad-sgd" checked> SGD</label><label><input type="checkbox" id="ad-mb" checked> mini-batch</label><label><input type="checkbox" id="ad-sched"> decay η<sub>t</sub> = η/(1 + t/20)</label></div>
+      <div class="btns"><button class="btn primary" id="ad-run">Run</button><button class="btn" id="ad-step">One update</button><button class="btn" id="ad-reset">Restart</button></div>
+    </div>
+    <div class="card"><h3>Live</h3><dl class="stats" id="ad-stats"></dl></div>
+  </div>
+</section>
+
+<!-- ================= 4.4 ACTIVATIONS ================= -->
+<section class="panel" id="activ" tabindex="-1" hidden>
+  <h2>Activation functions and their gradients</h2>
+  <p class="intro">Backprop needs a slope. The step function has none, the sigmoid's peaks at 0.25 and fades on both sides, and ReLU passes gradient 1 or 0. On the right, one hidden unit's response over the input plane: a sigmoid unit responds over a whole half-plane, an RBF unit only near its centre.</p>
+  <div class="key">
+    <div class="eq"><span>\(\displaystyle \sigma(x)=\frac1{1+e^{-x}},\;\; \sigma'=\sigma(1-\sigma)\)</span><span>\(\displaystyle \tanh'=1-\tanh^2\)</span><span>\(\displaystyle \text{ReLU}(x)=\max(0,x)\)</span><span>\(\displaystyle \text{RBF: }\exp\!\Big(-\frac{\lVert\mathbf x-\mathbf w_j\rVert^2}{2\sigma_j^2}\Big)\)</span></div>
+    <div class="from">Lecture 4 (MLP), slides 5–9. With linear hidden units, \(W_2W_1\mathbf x=(W_2W_1)\mathbf x\): extra layers add nothing.</div>
+  </div>
+  <div class="figs">
+    <figure class="fig"><canvas id="cv-ac-fn" aria-label="Activation functions and derivatives; drag along the x axis"></canvas>
+      <figcaption class="legend" id="ac-legend"></figcaption></figure>
+    <figure class="fig"><canvas id="cv-ac-unit" aria-label="Response of one hidden unit over the input plane; drag to move it"></canvas>
+      <figcaption class="legend"><span class="ca"><i class="sw box" style="background:currentColor"></i>unit output (darker = closer to 1)</span><span>drag to move the unit</span></figcaption></figure>
+  </div>
+  <div class="below">
+    <div class="card"><h3>Functions</h3>
+      <div class="checks" id="ac-show"></div>
+      <div class="ctrl"><label for="ac-x">net input</label><input type="range" id="ac-x" min="-5" max="5" step="0.05" value="1"><output id="ac-x-o"></output></div>
+      <dl class="stats" id="ac-stats"></dl>
+    </div>
+    <div class="card"><h3>One hidden unit</h3>
+      <div class="row"><span class="lbl">Unit</span><div class="seg" id="ac-unit"><button data-v="sig" aria-pressed="true">Sigmoid</button><button data-v="rbf" aria-pressed="false">Gaussian RBF</button></div></div>
+      <div class="ctrl"><label for="ac-s">width / scale</label><input type="range" id="ac-s" min="0.2" max="3" step="0.05" value="1"><output id="ac-s-o"></output></div>
+      <p class="hint" id="ac-hint"></p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 4.5 BACKPROP ================= -->
+<section class="panel" id="backprop" tabindex="-1" hidden>
+  <h2>Backpropagation on a computation graph</h2>
+  <p class="intro">Forward: values flow left to right in topological order. Backward: each node multiplies its local gradient by the gradient arriving from above and passes the product down. Step through it and watch the add, mul and max gates.</p>
+  <div class="key">
+    <div class="eq"><span>\(\displaystyle \frac{\partial L}{\partial x}=\underbrace{\frac{\partial z}{\partial x}}_{\text{local}}\;\underbrace{\frac{\partial L}{\partial z}}_{\text{upstream}}\)</span><span>\(\text{add: distributes}\)</span><span>\(\text{max: routes}\)</span><span>\(\text{mul: switches}\)</span><span>\(\displaystyle \frac{d\sigma}{dx}=\sigma(1-\sigma)\)</span></div>
+    <div class="from">Lecture 4 (computation graphs), slides 1–40. Gradients add where a value branches.</div>
+  </div>
+  <div class="figs">
+    <figure class="fig full"><canvas class="wide" id="cv-bp" aria-label="Computation graph with forward values and backward gradients"></canvas>
+      <figcaption class="legend"><span class="c1">value (forward)</span><span class="c2">gradient ∂f/∂· (backward)</span><span class="ca"><i class="sw box" style="background:currentColor"></i>current node</span></figcaption></figure>
+  </div>
+  <div class="below">
+    <div class="card"><h3>Graph</h3>
+      <div class="seg" id="bp-ex"><button data-v="simple" aria-pressed="true">f = (x + y)z</button><button data-v="sigmoid" aria-pressed="false">Sigmoid neuron</button><button data-v="gates" aria-pressed="false">Gate patterns</button><button data-v="branch" aria-pressed="false">Branching</button></div>
+      <div class="checks" id="bp-sigwrap"><label><input type="checkbox" id="bp-sig"> collapse into one sigmoid gate</label></div>
+      <div class="btns"><button class="btn" id="bp-prev">← Back</button><button class="btn primary" id="bp-next">Step →</button><button class="btn" id="bp-play">Play all</button><button class="btn" id="bp-reset">Restart</button></div>
+      <h3>Inputs</h3><div class="row" id="bp-inputs"></div>
+    </div>
+    <div class="card"><h3>This step</h3><p id="bp-now" class="mono" style="font-size:15px"></p></div>
+  </div>
+</section>
+
+<!-- ================= 4.6 MOMENTUM & LOCAL MINIMA ================= -->
+<section class="panel" id="minima" tabindex="-1" hidden>
+  <h2>Momentum and local minima</h2>
+  <p class="intro">A network's error surface can have several minima, and gradient descent stops in whichever basin it starts in. Momentum gives each weight inertia, which speeds it along valleys and can carry it over a shallow ridge. Click the surface to choose a start; the two paths share it.</p>
+  <div class="key">
+    <div class="eq"><span>\(\displaystyle \Delta\mathbf w(t+1)=-\eta\,\nabla E\big(\mathbf w(t)\big)+\alpha\,\Delta\mathbf w(t),\)</span><span>\(\displaystyle 0\lt\alpha\lt 1\)</span></div>
+    <div class="from">Lecture 4 (gradient descent), slides 11–13. \(\alpha=0\) is plain gradient descent.</div>
+  </div>
+  <div class="figs">
+    <figure class="fig"><canvas id="cv-mm-surf" aria-label="Error surface with several minima; click to start"></canvas>
+      <figcaption class="legend"><span class="co"><i class="sw"></i>plain GD (α = 0)</span><span class="ca"><i class="sw"></i>with momentum α</span><span>★ global minimum</span></figcaption></figure>
+    <figure class="fig"><canvas id="cv-mm-curve" aria-label="Error against iteration"></canvas>
+      <figcaption class="legend"><span class="co"><i class="sw"></i>plain GD</span><span class="ca"><i class="sw"></i>momentum</span><span class="co"><i class="sw dash"></i>global minimum</span></figcaption></figure>
+  </div>
+  <div class="below">
+    <div class="card"><h3>Optimiser</h3>
+      <div class="ctrl"><label for="mm-eta">rate η</label><input type="range" id="mm-eta" min="0.01" max="0.3" step="0.01" value="0.08"><output id="mm-eta-o"></output></div>
+      <div class="ctrl"><label for="mm-a">momentum α</label><input type="range" id="mm-a" min="0" max="0.97" step="0.01" value="0.9"><output id="mm-a-o"></output></div>
+      <div class="btns"><button class="btn primary" id="mm-run">Run</button><button class="btn" id="mm-restarts">20 random restarts</button></div>
+    </div>
+    <div class="card"><h3>Live</h3><dl class="stats" id="mm-stats"></dl></div>
+  </div>
+</section>
+
+<!-- ================= 4.7 MLP PLAYGROUND ================= -->
+<section class="panel" id="mlp" tabindex="-1" hidden>
+  <h2>Training an MLP</h2>
+  <p class="intro">A small multi-layer perceptron trained by backprop with momentum, in the spirit of the TensorFlow Playground demo. Watch the hidden units' lines combine into a curved boundary. One hidden unit can only draw a line; XOR needs at least two.</p>
+  <div class="key">
+    <div class="eq"><span>\(\displaystyle \delta_k=(o_k-t_k)\,o_k(1-o_k)\)</span><span>\(\displaystyle \delta_j=g'(\text{in}_j)\sum_k W_{k,j}\,\delta_k\)</span><span>\(\displaystyle \Delta W_{j,i}(t+1)=-\eta\,\delta_j\,a_i+\alpha\,\Delta W_{j,i}(t)\)</span></div>
+    <div class="from">Lecture 4 (MLP and gradient descent). Sigmoid output, squared error \(\tfrac12(t-o)^2\), weights start at small random values.</div>
+  </div>
+  <div class="figs">
+    <figure class="fig"><canvas id="cv-mlp-plane" aria-label="Decision regions of the network"></canvas>
+      <figcaption class="legend"><span class="c1"><i class="sw dot"></i>class 1</span><span class="c2"><i class="sw dot"></i>class 0</span><span class="co"><i class="sw ring"></i>test example</span><span class="ca"><i class="sw dash"></i>hidden-unit lines (first layer)</span></figcaption></figure>
+    <figure class="fig"><canvas id="cv-mlp-net" aria-label="Network diagram; edge width is weight size"></canvas>
+      <figcaption class="legend"><span class="c1"><i class="sw"></i>positive weight</span><span class="c2"><i class="sw"></i>negative weight</span><span>node fill = mini decision map</span></figcaption></figure>
+    <figure class="fig full"><canvas class="wide" id="cv-mlp-loss" aria-label="Loss against epoch"></canvas>
+      <figcaption class="legend"><span class="c1"><i class="sw"></i>training loss</span><span class="c2"><i class="sw"></i>test loss</span><span>log scale</span></figcaption></figure>
+  </div>
+  <div class="below">
+    <div class="card"><h3>Data and network</h3>
+      <div class="row"><span class="lbl">Data</span><div class="seg" id="mlp-data"><button data-v="xor" aria-pressed="true">XOR</button><button data-v="circle" aria-pressed="false">Circle</button><button data-v="moons" aria-pressed="false">Moons</button><button data-v="spiral" aria-pressed="false">Spiral</button><button data-v="linear" aria-pressed="false">Linear</button></div></div>
+      <div class="row"><span class="lbl">Hidden act.</span><div class="seg" id="mlp-act"><button data-v="sigmoid" aria-pressed="false">Sigmoid</button><button data-v="tanh" aria-pressed="true">tanh</button><button data-v="relu" aria-pressed="false">ReLU</button></div></div>
+      <div class="row"><span class="lbl">Hidden layers</span><div class="seg" id="mlp-layers"><button data-v="1" aria-pressed="true">1</button><button data-v="2" aria-pressed="false">2</button></div></div>
+      <div class="ctrl"><label for="mlp-h">units</label><input type="range" id="mlp-h" min="1" max="12" step="1" value="4"><output id="mlp-h-o"></output></div>
+      <div class="ctrl"><label for="mlp-eta">rate η</label><input type="range" id="mlp-eta" min="0.05" max="3" step="0.05" value="0.5"><output id="mlp-eta-o"></output></div>
+      <div class="ctrl"><label for="mlp-a">momentum α</label><input type="range" id="mlp-a" min="0" max="0.95" step="0.05" value="0.9"><output id="mlp-a-o"></output></div>
+      <div class="ctrl"><label for="mlp-noise">noise</label><input type="range" id="mlp-noise" min="0" max="0.5" step="0.02" value="0.1"><output id="mlp-noise-o"></output></div>
+      <div class="checks"><label><input type="checkbox" id="mlp-lines" checked> hidden-unit lines</label></div>
+      <div class="btns"><button class="btn primary" id="mlp-run">Train</button><button class="btn" id="mlp-step">One epoch</button><button class="btn" id="mlp-reset">New random weights</button></div>
+    </div>
+    <div class="card"><h3>Live</h3><dl class="stats" id="mlp-stats"></dl></div>
+  </div>
+</section>
+
+<!-- ================= 4.8 UNIVERSAL APPROXIMATION ================= -->
+<section class="panel" id="approx" tabindex="-1" hidden>
+  <h2>Universal approximation</h2>
+  <p class="intro">One hidden layer of sigmoids, each a soft step at its own position, can build any well-behaved function: the output layer scales the steps and adds them up. Add units and the staircase hugs the target more closely.</p>
+  <div class="key">
+    <div class="eq"><span>\(\displaystyle \hat f(x)=b+\sum_{j=1}^{H}v_j\,\sigma\big(k(x-c_j)\big)\)</span><span>\(\displaystyle \max_x\lvert\hat f(x)-f(x)\rvert\to 0\ \text{ as } H\to\infty\)</span></div>
+    <div class="from">Lecture 4 (MLP), slides 10–11. Here the hidden steps are spread evenly over the interval and the output weights \(v_j\) are fitted by least squares.</div>
+  </div>
+  <div class="figs">
+    <figure class="fig"><canvas id="cv-ua-fit" aria-label="Target and network approximation with each hidden unit's contribution"></canvas>
+      <figcaption class="legend"><span class="co"><i class="sw dash"></i>target f(x)</span><span class="ca"><i class="sw"></i>network output</span><span class="c1" style="opacity:.7"><i class="sw"></i>each vⱼ·hⱼ(x)</span></figcaption></figure>
+    <figure class="fig"><canvas id="cv-ua-err" aria-label="Maximum error against number of hidden units"></canvas>
+      <figcaption class="legend"><span class="ca"><i class="sw"></i>max error</span><span class="c2"><i class="sw dot"></i>current H</span><span>log scale</span></figcaption></figure>
+  </div>
+  <div class="below">
+    <div class="card"><h3>Network</h3>
+      <div class="row"><span class="lbl">Target</span><div class="seg" id="ua-f"><button data-v="sin" aria-pressed="true">Wave</button><button data-v="step" aria-pressed="false">Step</button><button data-v="abs" aria-pressed="false">|x|</button><button data-v="bump" aria-pressed="false">Bumps</button><button data-v="saw" aria-pressed="false">Sawtooth</button></div></div>
+      <div class="row"><span class="lbl">Hidden act.</span><div class="seg" id="ua-act"><button data-v="sig" aria-pressed="true">Sigmoid</button><button data-v="relu" aria-pressed="false">ReLU</button></div></div>
+      <div class="ctrl"><label for="ua-h">units H</label><input type="range" id="ua-h" min="1" max="40" step="1" value="6"><output id="ua-h-o"></output></div>
+      <div class="ctrl"><label for="ua-k">steepness k</label><input type="range" id="ua-k" min="0.5" max="4" step="0.05" value="2"><output id="ua-k-o"></output></div>
+      <div class="checks"><label><input type="checkbox" id="ua-parts" checked> show each unit's contribution</label></div>
+    </div>
+    <div class="card"><h3>Live</h3><dl class="stats" id="ua-stats"></dl></div>
+  </div>
+</section>
+
+<!-- ================= 5.1 CONVOLUTION 1D ================= -->
+<section class="panel" id="conv1d" tabindex="-1" hidden>
+  <h2>Convolution: flip, slide, multiply, add</h2>
+  <p class="intro">To get output \(m\), flip the kernel, slide it so it sits over position \(m\), multiply overlapping entries and add. Turn off the flip and you have cross-correlation, which is what CNN libraries actually compute.</p>
+  <div class="key">
+    <div class="eq"><span>\(\displaystyle (f*g)(m)=\sum_{n}f(n)\,g(m-n)\)</span><span>\(\displaystyle \text{cross-correlation: }\sum_n f(m+n)\,g(n)\)</span><span>\(\displaystyle f*g=g*f\)</span></div>
+    <div class="from">Lecture 5 (image processing basics), slides 3–6.</div>
+  </div>
+  <div class="figs">
+    <figure class="fig full"><canvas class="wide" id="cv-c1" aria-label="Signal, flipped kernel at the current shift, and output; drag along the output"></canvas>
+      <figcaption class="legend"><span class="c1"><i class="sw dot"></i>signal f(n)</span><span class="c2"><i class="sw dot"></i>kernel g(m − n) at shift m</span><span class="ca"><i class="sw dot"></i>output (f∗g)(m)</span><span>drag across the plot to move m</span></figcaption></figure>
+  </div>
+  <div class="below">
+    <div class="card"><h3>Signals</h3>
+      <div class="row"><span class="lbl">Signal</span><div class="seg" id="c1-f"><button data-v="pulse" aria-pressed="true">Pulse</button><button data-v="steps" aria-pressed="false">Steps</button><button data-v="noisy" aria-pressed="false">Noisy</button><button data-v="spike" aria-pressed="false">Spikes</button></div></div>
+      <div class="row"><span class="lbl">Kernel</span><div class="seg" id="c1-g"><button data-v="box" aria-pressed="true">Box</button><button data-v="tri" aria-pressed="false">Triangle</button><button data-v="decay" aria-pressed="false">Decay</button><button data-v="diff" aria-pressed="false">Difference</button></div></div>
+      <div class="checks"><label><input type="checkbox" id="c1-flip" checked> flip the kernel (true convolution)</label></div>
+      <div class="ctrl"><label for="c1-m">shift m</label><input type="range" id="c1-m" min="0" max="31" step="1" value="10"><output id="c1-m-o"></output></div>
+      <div class="btns"><button class="btn primary" id="c1-play">Slide</button></div>
+    </div>
+    <div class="card"><h3>At this shift</h3><p id="c1-sum" class="mono" style="font-size:14px;overflow-wrap:anywhere"></p></div>
+  </div>
+</section>
+
+<!-- ================= 5.2 IMAGE FILTERS ================= -->
+<section class="panel" id="filters" tabindex="-1" hidden>
+  <h2>Image filters</h2>
+  <p class="intro">A 3×3 kernel slides over the image. Averaging kernels blur; difference kernels respond where intensity changes, which makes them edge detectors. Hover the output to see which pixels feed it. Draw on the input to try your own strokes.</p>
+  <div class="key">
+    <div class="eq"><span>\(\displaystyle S(i,j)=\sum_m\sum_n I(i+m,\,j+n)\,K(m,n)\)</span><span>\(\displaystyle \frac{\partial f}{\partial x}\leftrightarrow f(x+1)-f(x)\)</span></div>
+    <div class="from">Lecture 5 (image processing basics), slides 5–11. Edge pixels use zero padding, so the output is the same size as the input.</div>
+  </div>
+  <div class="figs">
+    <figure class="fig"><canvas id="cv-fi-in" aria-label="Input image; draw with the pointer"></canvas>
+      <figcaption class="legend"><span>input I (draw on it)</span><span class="ca"><i class="sw ring"></i>receptive field of the hovered output</span></figcaption></figure>
+    <figure class="fig"><canvas id="cv-fi-out" aria-label="Filtered output; hover a pixel"></canvas>
+      <figcaption class="legend"><span class="c1"><i class="sw box" style="background:currentColor"></i>positive</span><span class="c2"><i class="sw box" style="background:currentColor"></i>negative</span><span>(signed kernels) · grey for averaging kernels</span></figcaption></figure>
+  </div>
+  <div class="below">
+    <div class="card"><h3>Kernel</h3>
+      <div class="seg" id="fi-k"><button data-v="id" aria-pressed="false">Identity</button><button data-v="box" aria-pressed="true">Box blur</button><button data-v="w5" aria-pressed="false">Centre 5</button><button data-v="sharp" aria-pressed="false">Sharpen</button><button data-v="sx" aria-pressed="false">Sobel x</button><button data-v="sy" aria-pressed="false">Sobel y</button><button data-v="lap" aria-pressed="false">Laplacian</button></div>
+      <div class="row" style="align-items:flex-start;gap:16px"><div class="kgrid" id="fi-grid"></div><div><div class="ctrl" style="grid-template-columns:4rem 8rem 3rem"><label for="fi-rep">apply</label><input type="range" id="fi-rep" min="1" max="4" step="1" value="1"><output id="fi-rep-o"></output></div><p class="hint">Edit any cell. Applying a blur repeatedly widens it.</p></div></div>
+    </div>
+    <div class="card"><h3>Image</h3>
+      <div class="seg" id="fi-img"><button data-v="seven" aria-pressed="true">Digit 7</button><button data-v="shapes" aria-pressed="false">Shapes</button><button data-v="noise" aria-pressed="false">Noisy square</button><button data-v="blank" aria-pressed="false">Blank</button></div>
+      <h3>Hovered output</h3><p id="fi-sum" class="mono" style="font-size:14px"></p>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 5.3 PADDING & STRIDE ================= -->
+<section class="panel" id="stride" tabindex="-1" hidden>
+  <h2>Padding and stride</h2>
+  <p class="intro">Without padding every convolution shrinks the map by \(k-1\), which limits how deep the network can go. Zero-padding keeps the size; a stride of 2 skips every other position and halves it.</p>
+  <div class="key">
+    <div class="eq"><span>\(\displaystyle n_{\text{out}}=\Big\lfloor\frac{n+2p-k}{s}\Big\rfloor+1\)</span><span>\(\displaystyle p=\frac{k-1}{2},\;s=1\;\Rightarrow\;n_{\text{out}}=n\)</span></div>
+    <div class="from">Lecture 5 (CNN), slides 13–19.</div>
+  </div>
+  <div class="figs three">
+    <figure class="fig"><canvas id="cv-st-in" aria-label="Padded input with the kernel window"></canvas>
+      <figcaption class="legend"><span>input n×n</span><span class="co"><i class="sw box" style="background:var(--grid)"></i>zero padding</span><span class="ca"><i class="sw ring"></i>kernel window</span></figcaption></figure>
+    <figure class="fig"><canvas id="cv-st-out" aria-label="Output feature map; click a cell"></canvas>
+      <figcaption class="legend"><span>output map (click a cell)</span><span class="ca"><i class="sw box" style="background:currentColor"></i>current</span></figcaption></figure>
+    <figure class="fig"><canvas id="cv-st-depth" aria-label="Map size after each layer"></canvas>
+      <figcaption class="legend"><span class="ca"><i class="sw box" style="background:currentColor"></i>these settings</span><span class="co"><i class="sw box" style="background:currentColor"></i>no padding, stride 1</span></figcaption></figure>
+  </div>
+  <div class="below">
+    <div class="card"><h3>Layer</h3>
+      <div class="ctrl"><label for="st-n">input n</label><input type="range" id="st-n" min="4" max="9" step="1" value="7"><output id="st-n-o"></output></div>
+      <div class="ctrl"><label for="st-k">kernel k</label><input type="range" id="st-k" min="1" max="5" step="1" value="3"><output id="st-k-o"></output></div>
+      <div class="ctrl"><label for="st-p">padding p</label><input type="range" id="st-p" min="0" max="2" step="1" value="0"><output id="st-p-o"></output></div>
+      <div class="ctrl"><label for="st-s">stride s</label><input type="range" id="st-s" min="1" max="3" step="1" value="1"><output id="st-s-o"></output></div>
+      <div class="btns"><button class="btn primary" id="st-play">Slide</button></div>
+    </div>
+    <div class="card"><h3>Live</h3><dl class="stats" id="st-stats"></dl></div>
+  </div>
+</section>
+
+<!-- ================= 5.4 POOLING ================= -->
+<section class="panel" id="pool" tabindex="-1" hidden>
+  <h2>Max pooling and small shifts</h2>
+  <p class="intro">Once a feature is found, only its rough position matters. Max pooling keeps the strongest response in each window, so nudging the input by a pixel often leaves the pooled map unchanged. Shift the input and compare.</p>
+  <div class="key">
+    <div class="eq"><span>\(\displaystyle P(i,j)=\max_{0\le a,b\lt q}\;F(si+a,\;sj+b)\)</span><span>\(\displaystyle \text{size }q=2,\ \text{stride }s=2\ \Rightarrow\ \text{map halves}\)</span></div>
+    <div class="from">Lecture 5 (CNN), slides 15–17. Average pooling replaces the max with the mean.</div>
+  </div>
+  <div class="figs">
+    <figure class="fig"><canvas id="cv-po-in" aria-label="Feature map with pooling windows"></canvas>
+      <figcaption class="legend"><span>feature map F</span><span class="ca"><i class="sw ring"></i>window max</span></figcaption></figure>
+    <figure class="fig"><canvas id="cv-po-out" aria-label="Pooled map; hover a cell"></canvas>
+      <figcaption class="legend"><span>pooled P</span><span class="ok"><i class="sw ring"></i>same as before the shift</span><span class="bad"><i class="sw ring"></i>changed</span></figcaption></figure>
+  </div>
+  <div class="below">
+    <div class="card"><h3>Pooling</h3>
+      <div class="row"><span class="lbl">Type</span><div class="seg" id="po-type"><button data-v="max" aria-pressed="true">Max</button><button data-v="avg" aria-pressed="false">Average</button></div></div>
+      <div class="row"><span class="lbl">Window</span><div class="seg" id="po-q"><button data-v="2" aria-pressed="true">2×2, stride 2</button><button data-v="3" aria-pressed="false">3×3, stride 3</button></div></div>
+      <div class="row"><span class="lbl">Shift input</span><button class="btn" data-shift="-1,0">←</button><button class="btn" data-shift="1,0">→</button><button class="btn" data-shift="0,-1">↑</button><button class="btn" data-shift="0,1">↓</button><button class="btn" id="po-new">New features</button></div>
+    </div>
+    <div class="card"><h3>Live</h3><dl class="stats" id="po-stats"></dl></div>
+  </div>
+</section>
+
+<!-- ================= 5.5 RECEPTIVE FIELD & SHARING ================= -->
+<section class="panel" id="rfield" tabindex="-1" hidden>
+  <h2>Receptive fields and parameter sharing</h2>
+  <p class="intro">Each unit sees only a small window of the layer below, yet the window it covers in the input grows with every layer. And because one kernel is reused at every position, a convolution needs far fewer weights than a fully connected layer.</p>
+  <div class="key">
+    <div class="eq"><span>\(\displaystyle r_\ell=r_{\ell-1}+(k-1)\prod_{i\lt\ell}s_i,\;\; r_0=1\)</span><span>\(\displaystyle \text{FC: }(n^2C_{\text{in}})(n^2C_{\text{out}})\)</span><span>\(\displaystyle \text{local: }n^2C_{\text{out}}(k^2C_{\text{in}}+1)\)</span><span>\(\displaystyle \text{conv: }C_{\text{out}}(k^2C_{\text{in}}+1)\)</span></div>
+    <div class="from">Lecture 5 (CNN), slides 2–11. Parameter counts include biases; same-size output assumed.</div>
+  </div>
+  <div class="figs">
+    <figure class="fig"><canvas id="cv-rf" aria-label="Stacked 1D conv layers; click a top unit"></canvas>
+      <figcaption class="legend"><span class="ca"><i class="sw box" style="background:currentColor"></i>units feeding the selected unit</span><span>click a unit in the top layer</span></figcaption></figure>
+    <figure class="fig"><canvas id="cv-rf-params" aria-label="Parameter counts on a log scale"></canvas>
+      <figcaption class="legend"><span class="c2"><i class="sw box" style="background:currentColor"></i>fully connected</span><span class="c1"><i class="sw box" style="background:currentColor"></i>locally connected</span><span class="ca"><i class="sw box" style="background:currentColor"></i>convolution (shared)</span></figcaption></figure>
+  </div>
+  <div class="below">
+    <div class="card"><h3>Receptive field</h3>
+      <div class="ctrl"><label for="rf-k">kernel k</label><input type="range" id="rf-k" min="2" max="5" step="1" value="3"><output id="rf-k-o"></output></div>
+      <div class="ctrl"><label for="rf-l">layers</label><input type="range" id="rf-l" min="1" max="4" step="1" value="3"><output id="rf-l-o"></output></div>
+      <div class="ctrl"><label for="rf-s">stride</label><input type="range" id="rf-s" min="1" max="2" step="1" value="1"><output id="rf-s-o"></output></div>
+    </div>
+    <div class="card"><h3>Parameters for one layer</h3>
+      <div class="ctrl"><label for="rf-n">image n×n</label><input type="range" id="rf-n" min="8" max="224" step="8" value="32"><output id="rf-n-o"></output></div>
+      <div class="ctrl"><label for="rf-ci">in channels</label><input type="range" id="rf-ci" min="1" max="64" step="1" value="3"><output id="rf-ci-o"></output></div>
+      <div class="ctrl"><label for="rf-co">filters</label><input type="range" id="rf-co" min="1" max="128" step="1" value="16"><output id="rf-co-o"></output></div>
+      <div class="ctrl"><label for="rf-pk">kernel</label><input type="range" id="rf-pk" min="1" max="7" step="2" value="3"><output id="rf-pk-o"></output></div>
+    </div>
+  </div>
+</section>
+
+<nav class="pager" id="pager" aria-label="Previous and next topic"></nav>
+</main>
+</div>
+<footer>Built from the COMP 4211 lecture slides (Lectures 2–5). Everything is computed live in the browser; random data comes from seeded generators, so "New" buttons change the seed.</footer>
+</div>
+<script>
+(function(){
+"use strict";
+const TAU = Math.PI*2;
+const $ = s => document.querySelector(s), $$ = s => [...document.querySelectorAll(s)];
+const reduceMotion = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+
+/* ---------- theme tokens ---------- */
+const T = {}, RGB = {};
+function readTokens(){
+  const cs = getComputedStyle(document.documentElement);
+  ['bg','panel','ink','muted','rule','grid','v1','v2','one','acc','ok','warn','bad','v1-soft','v2-soft','acc-soft','ok-soft','bad-soft'].forEach(k => T[k] = cs.getPropertyValue('--'+k).trim());
+  ['panel','ink','v1','v2','acc','one','grid','ok','bad','warn'].forEach(k => { const h=T[k].replace('#',''); RGB[k]=[0,2,4].map(i=>parseInt(h.slice(i,i+2),16)); });
+}
+const F = {
+  tick: '11px "IBM Plex Mono", ui-monospace, Menlo, monospace',
+  small:'10px "IBM Plex Mono", ui-monospace, Menlo, monospace',
+  num:  '600 12px "IBM Plex Mono", ui-monospace, Menlo, monospace',
+  lab:  '600 13px "IBM Plex Sans", system-ui, sans-serif',
+  big:  '600 15px "IBM Plex Sans", system-ui, sans-serif',
+  ttl:  '600 13px "IBM Plex Sans", system-ui, sans-serif',
+};
+
+/* ---------- maths ---------- */
+function fmt(x, d=2){
+  if (!isFinite(x)) return x>0 ? '∞' : x<0 ? '−∞' : '—';
+  let s = x.toFixed(d);
+  if (/^-0(\.0+)?$/.test(s)) s = s.slice(1);
+  return s.replace('-', '−');
+}
+function fmtG(x){ const a=Math.abs(x); if (!isFinite(x)) return fmt(x); if (a>=1e4 || (a<1e-3 && a>0)) return x.toExponential(1).replace('-','−').replace('e+','e'); return fmt(x, a>=100?0:a>=10?1:a>=1?2:3); }
+function compact(n){ const u=[[1e12,'T'],[1e9,'B'],[1e6,'M'],[1e3,'k']]; for (const [v,s] of u) if (n>=v) return (n/v).toFixed(n/v>=100?0:1).replace(/\.0$/,'')+s; return String(Math.round(n)); }
+function rng(seed){ return function(){ seed|=0; seed=seed+0x6D2B79F5|0; let t=Math.imul(seed^seed>>>15,1|seed); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+function gauss(r){ let u=0; while(u===0) u=r(); return Math.sqrt(-2*Math.log(u))*Math.cos(TAU*r()); }
+function shuffle(a, r){ for (let i=a.length-1;i>0;i--){ const j=Math.floor(r()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+const dot = (a,b) => a.reduce((s,v,i)=>s+v*b[i],0);
+const sigm = x => 1/(1+Math.exp(-x));
+const clamp = (x,a,b) => Math.max(a,Math.min(b,x));
+// solve A x = b (Gaussian elimination, partial pivoting); A is copied
+function solve(A, b){
+  const n=b.length, M=A.map((r,i)=>[...r, b[i]]);
+  for (let c=0;c<n;c++){
+    let p=c; for (let r=c+1;r<n;r++) if (Math.abs(M[r][c])>Math.abs(M[p][c])) p=r;
+    [M[c],M[p]]=[M[p],M[c]];
+    const d=M[c][c]||1e-300;
+    for (let r=c+1;r<n;r++){ const f=M[r][c]/d; if (f) for (let k=c;k<=n;k++) M[r][k]-=f*M[c][k]; }
+  }
+  const x=Array(n).fill(0);
+  for (let r=n-1;r>=0;r--){ let s=M[r][n]; for (let k=r+1;k<n;k++) s-=M[r][k]*x[k]; x[r]=s/(M[r][r]||1e-300); }
+  return x;
+}
+// least squares with a tiny ridge: rows of features Phi, targets y
+function lstsq(Phi, y, ridge=1e-9){
+  const p=Phi[0].length, A=[...Array(p)].map(()=>Array(p).fill(0)), b=Array(p).fill(0);
+  Phi.forEach((r,i)=>{ for (let a=0;a<p;a++){ b[a]+=r[a]*y[i]; for (let c=0;c<p;c++) A[a][c]+=r[a]*r[c]; } });
+  const tr=A.reduce((s,r,i)=>s+r[i],0)/p;
+  for (let a=0;a<p;a++) A[a][a]+=ridge*(tr||1);
+  return solve(A,b);
+}
+// Legendre features on x in [0,1] (well conditioned up to degree 12)
+function legendre(x, d){ const z=2*x-1, P=[1]; if (d>=1) P.push(z); for (let n=1;n<d;n++) P.push(((2*n+1)*z*P[n]-n*P[n-1])/(n+1)); return P; }
+
+/* ---------- canvas helpers ---------- */
+function prep(cv){
+  const dpr = window.devicePixelRatio || 1;
+  const w = cv.clientWidth, h = cv.clientHeight;
+  const W = Math.max(1, Math.round(w*dpr)), H = Math.max(1, Math.round(h*dpr));
+  if (cv.width!==W || cv.height!==H){ cv.width=W; cv.height=H; }
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.fillStyle = T.panel; ctx.fillRect(0,0,w,h);
+  return {ctx, w, h};
+}
+function makeView2(w,h,x0,x1,y0,y1,pad){
+  pad = pad || {l:46,r:14,t:30,b:24};
+  const sx=(w-pad.l-pad.r)/(x1-x0), sy=(h-pad.t-pad.b)/(y1-y0);
+  return { x0,x1,y0,y1,pad,sx,sy, X:x=>pad.l+(x-x0)*sx, Y:y=>h-pad.b-(y-y0)*sy, iX:px=>(px-pad.l)/sx+x0, iY:py=>(h-pad.b-py)/sy+y0 };
+}
+// equal-aspect view centred on (cx, cy) showing at least ±span
+function eqView(w,h,cx,cy,span,pad){
+  pad = pad || {l:40,r:14,t:30,b:24};
+  const W=w-pad.l-pad.r, H=h-pad.t-pad.b, s=Math.min(W,H)/(2*span);
+  return makeView2(w,h,cx-W/2/s,cx+W/2/s,cy-H/2/s,cy+H/2/s,pad);
+}
+function tickStep(range,k=5){ const raw=range/k, p=Math.pow(10,Math.floor(Math.log10(raw))), f=raw/p; return (f<1.5?1:f<3.5?2:f<7.5?5:10)*p; }
+function tickFmt(x, st){ const d=st>=1?0:Math.min(3,Math.ceil(-Math.log10(st)-1e-9)); return fmt(x,d); }
+function logFmt(k){ const v=Math.pow(10,k); return v>=1 ? compact(v) : String(+v.toPrecision(1)); }
+function drawAxes2(ctx,v,w,h,xlab,ylab,opt={}){
+  const sx=opt.xStep||tickStep(v.x1-v.x0), sy=opt.logY?1:tickStep(v.y1-v.y0,4), L=v.pad.l, R=w-v.pad.r, Tp=v.pad.t, B=h-v.pad.b;
+  ctx.lineWidth=1; ctx.font=F.tick; ctx.fillStyle=T.muted;
+  ctx.textAlign='center'; ctx.textBaseline='top';
+  for (let x=Math.ceil(v.x0/sx-1e-9)*sx; x<=v.x1+sx*1e-6; x+=sx){ const px=Math.round(v.X(x))+.5; ctx.strokeStyle=T.grid; ctx.beginPath(); ctx.moveTo(px,Tp); ctx.lineTo(px,B); ctx.stroke(); ctx.fillText(opt.xFmt?opt.xFmt(x):tickFmt(x,sx),px,B+5); }
+  ctx.textAlign='right'; ctx.textBaseline='middle';
+  for (let y=Math.ceil(v.y0/sy-1e-9)*sy; y<=v.y1+sy*1e-6; y+=sy){ const py=Math.round(v.Y(y))+.5; ctx.strokeStyle=T.grid; ctx.beginPath(); ctx.moveTo(L,py); ctx.lineTo(R,py); ctx.stroke(); ctx.fillText(opt.logY?logFmt(Math.round(y)):tickFmt(y,sy),L-6,py); }
+  ctx.strokeStyle=T.rule; ctx.strokeRect(L+.5,Tp+.5,R-L-1,B-Tp-1);
+  if (xlab) label(ctx,xlab,R-4,B-10,T.muted,F.ttl,'right');
+  if (ylab) label(ctx,ylab,L+6,Tp+10,T.muted,F.ttl,'left');
+}
+function clipPlot(ctx,v,w,h){ ctx.save(); ctx.beginPath(); ctx.rect(v.pad.l,v.pad.t,w-v.pad.l-v.pad.r,h-v.pad.t-v.pad.b); ctx.clip(); }
+function arrow(ctx, x0,y0,x1,y1, col, lw=2, head=10){
+  const a=Math.atan2(y1-y0,x1-x0), L=Math.hypot(x1-x0,y1-y0);
+  if (L<0.5) return;
+  const hh=Math.min(head, L*0.45);
+  ctx.strokeStyle=col; ctx.fillStyle=col; ctx.lineWidth=lw; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x1-Math.cos(a)*hh*0.7, y1-Math.sin(a)*hh*0.7); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x1,y1);
+  ctx.lineTo(x1-hh*Math.cos(a-0.38), y1-hh*Math.sin(a-0.38));
+  ctx.lineTo(x1-hh*Math.cos(a+0.38), y1-hh*Math.sin(a+0.38));
+  ctx.closePath(); ctx.fill();
+}
+function label(ctx, txt, x, y, col, font=F.lab, align='left', base='middle'){
+  ctx.font=font; ctx.textAlign=align; ctx.textBaseline=base;
+  ctx.lineJoin='round'; ctx.lineWidth=4; ctx.strokeStyle=T.panel; ctx.strokeText(txt,x,y);
+  ctx.fillStyle=col; ctx.fillText(txt,x,y);
+}
+function title(ctx, txt){ label(ctx, txt, 12, 16, T.muted, F.ttl); }
+function line(ctx, pts, col, lw=2, dash){
+  ctx.save(); if (dash) ctx.setLineDash(dash); ctx.strokeStyle=col; ctx.lineWidth=lw; ctx.lineJoin='round'; ctx.lineCap='round';
+  ctx.beginPath(); let pen=false;
+  pts.forEach(p=>{ if (!p || !isFinite(p[0]) || !isFinite(p[1])){ pen=false; return; } pen?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]); pen=true; });
+  ctx.stroke(); ctx.restore();
+}
+function dotAt(ctx, x, y, col, r=5, ring){
+  ctx.beginPath(); ctx.arc(x,y,r,0,TAU);
+  if (ring){ ctx.lineWidth=2; ctx.strokeStyle=col; ctx.fillStyle=T.panel; ctx.fill(); ctx.stroke(); }
+  else { ctx.fillStyle=col; ctx.fill(); ctx.lineWidth=1.5; ctx.strokeStyle=T.panel; ctx.stroke(); }
+}
+function ringAt(ctx, x, y, col, r=9, lw=2){ ctx.beginPath(); ctx.arc(x,y,r,0,TAU); ctx.lineWidth=lw; ctx.strokeStyle=col; ctx.stroke(); }
+function cross(ctx, x, y, col, r=6){
+  ctx.strokeStyle=col; ctx.lineWidth=2.5; ctx.lineCap='round';
+  ctx.beginPath(); ctx.moveTo(x-r,y-r); ctx.lineTo(x+r,y+r); ctx.moveTo(x+r,y-r); ctx.lineTo(x-r,y+r); ctx.stroke();
+}
+function star(ctx, x, y, col, r=8){
+  ctx.beginPath();
+  for (let i=0;i<10;i++){ const a=-Math.PI/2+i*Math.PI/5, rr=i%2?r*0.45:r; ctx.lineTo(x+rr*Math.cos(a), y+rr*Math.sin(a)); }
+  ctx.closePath(); ctx.fillStyle=col; ctx.fill(); ctx.lineWidth=1.5; ctx.strokeStyle=T.panel; ctx.stroke();
+}
+const mix = (a,b,t) => a.map((v,i)=>Math.round(v+(b[i]-v)*t));
+const rgba = (c,a=1) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+// paint f(x,y) -> [r,g,b] over the plot area at low resolution, then scale up smoothly
+const OFF = document.createElement('canvas');
+function heat(ctx, v, w, h, f, res=4){
+  const L=v.pad.l, Tp=v.pad.t, W=w-L-v.pad.r, H=h-Tp-v.pad.b;
+  const nx=Math.max(2,Math.ceil(W/res)), ny=Math.max(2,Math.ceil(H/res));
+  OFF.width=nx; OFF.height=ny;
+  const oc=OFF.getContext('2d'), img=oc.createImageData(nx,ny), d=img.data;
+  for (let j=0;j<ny;j++) for (let i=0;i<nx;i++){
+    const c=f(v.iX(L+(i+.5)*W/nx), v.iY(Tp+(j+.5)*H/ny)), k=4*(j*nx+i);
+    d[k]=c[0]; d[k+1]=c[1]; d[k+2]=c[2]; d[k+3]=255;
+  }
+  oc.putImageData(img,0,0);
+  ctx.save(); ctx.imageSmoothingEnabled=true; ctx.drawImage(OFF,L,Tp,W,H); ctx.restore();
+}
+// loss surface on a log scale: shading (darker = lower) plus contour lines by marching squares
+function contourMap(ctx, v, w, h, f, col='acc', res=4){
+  const L=v.pad.l, Tp=v.pad.t, W=w-L-v.pad.r, H=h-Tp-v.pad.b;
+  const nx=Math.ceil(W/res), ny=Math.ceil(H/res), N=nx+1, vals=new Float64Array(N*(ny+1));
+  const px=i=>L+i*W/nx, py=j=>Tp+j*H/ny;
+  let lo=Infinity, hi=-Infinity;
+  for (let j=0;j<=ny;j++) for (let i=0;i<=nx;i++){
+    const u=Math.log(Math.max(f(v.iX(px(i)), v.iY(py(j))),1e-9)); vals[j*N+i]=u;
+    if (u<lo) lo=u; if (u>hi) hi=u;
+  }
+  const P=RGB.panel, C=RGB[col], span=(hi-lo)||1;
+  OFF.width=N; OFF.height=ny+1;
+  const oc=OFF.getContext('2d'), img=oc.createImageData(N,ny+1), d=img.data;
+  for (let k=0;k<vals.length;k++){ const c=mix(P,C,0.34*(1-(vals[k]-lo)/span)); d[4*k]=c[0]; d[4*k+1]=c[1]; d[4*k+2]=c[2]; d[4*k+3]=255; }
+  oc.putImageData(img,0,0);
+  ctx.save(); ctx.imageSmoothingEnabled=true; ctx.drawImage(OFF,L,Tp,W,H);
+  ctx.strokeStyle=rgba(C,0.5); ctx.lineWidth=1; ctx.beginPath();
+  for (let l=1;l<12;l++){
+    const z=lo+span*Math.pow(l/12,1.3);
+    for (let j=0;j<ny;j++) for (let i=0;i<nx;i++){
+      const a=vals[j*N+i], b=vals[j*N+i+1], c=vals[(j+1)*N+i+1], e=vals[(j+1)*N+i];
+      const pts=[];
+      const t=(p,q)=>(z-p)/(q-p);
+      if ((a<z)!==(b<z)) pts.push([px(i+t(a,b)),py(j)]);
+      if ((b<z)!==(c<z)) pts.push([px(i+1),py(j+t(b,c))]);
+      if ((e<z)!==(c<z)) pts.push([px(i+t(e,c)),py(j+1)]);
+      if ((a<z)!==(e<z)) pts.push([px(i),py(j+t(a,e))]);
+      for (let k=0;k+1<pts.length;k+=2){ ctx.moveTo(pts[k][0],pts[k][1]); ctx.lineTo(pts[k+1][0],pts[k+1][1]); }
+    }
+  }
+  ctx.stroke(); ctx.restore();
+}
+function ptr(cv, e){ const r=cv.getBoundingClientRect(); return [e.clientX-r.left, e.clientY-r.top]; }
+const set = (id, html) => { const el=document.getElementById(id); if (el) el.innerHTML = html; };
+const stats = rows => rows.map(([k,v])=>`<dt>${k}</dt><dd>${v}</dd>`).join('');
+const pill = (cls, txt) => `<span class="pill ${cls}">${txt}</span>`;
+
+/* ---------- controls ---------- */
+function bindRange(id, fmtFn, onInput){
+  const el=$('#'+id), out=$('#'+id+'-o');
+  const upd=()=>{ if (out) out.textContent=fmtFn(+el.value); };
+  el.addEventListener('input',()=>{ upd(); onInput(+el.value); });
+  upd(); return el;
+}
+function bindSeg(id, onPick){
+  const box=$('#'+id);
+  box.addEventListener('click',e=>{
+    const b=e.target.closest('button'); if (!b) return;
+    box.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed', x===b));
+    onPick(b.dataset.v);
+  });
+}
+function pressSeg(id, v){ $$('#'+id+' button').forEach(x=>x.setAttribute('aria-pressed', x.dataset.v===String(v))); }
+
+/* ---------- animation runners: one per topic, all stopped when the topic changes ---------- */
+const RUNS = {};
+function run(key, btn, stepFn, every=0, labels=['Run','Pause']){
+  if (RUNS[key]){ stop(key); return; }
+  const st={ btn, labels, last:0, id:0 };
+  RUNS[key]=st; if (btn) btn.textContent=labels[1];
+  const f=now=>{
+    if (RUNS[key]!==st) return;
+    if (now-st.last>=every){ st.last=now; if (stepFn()===false){ stop(key); return; } }
+    st.id=requestAnimationFrame(f);
+  };
+  st.id=requestAnimationFrame(f);
+}
+function stop(key){ const st=RUNS[key]; if (!st) return; cancelAnimationFrame(st.id); delete RUNS[key]; if (st.btn) st.btn.textContent=st.labels[0]; }
+function stopAll(){ Object.keys(RUNS).forEach(stop); }
+// drag helper: onDown(px,py,e) returns a handler (px,py)=>{} or null
+function draggable(cv, onDown, onUp){
+  let h=null;
+  cv.addEventListener('pointerdown',e=>{ const [x,y]=ptr(cv,e); h=onDown(x,y,e); if (h){ cv.setPointerCapture(e.pointerId); e.preventDefault(); } });
+  cv.addEventListener('pointermove',e=>{ if (h){ const [x,y]=ptr(cv,e); h(x,y); } });
+  ['pointerup','pointercancel'].forEach(t=>cv.addEventListener(t,()=>{ if (h){ h=null; onUp && onUp(); } }));
+}
+const near = (pts, x, y, r=14) => { let best=-1, bd=r*r; pts.forEach((p,i)=>{ const d=(p[0]-x)**2+(p[1]-y)**2; if (d<bd){ bd=d; best=i; } }); return best; };
+
+/* =====================================================================
+   2.1 Linear regression by gradient descent
+   ===================================================================== */
+const LR = { pts:[[1,1],[2,3],[4,3]], w:[1,0.57], path:[[1,0.57]], eta:0.1 };
+const lrLoss = (w, P=LR.pts) => P.reduce((s,[x,y])=>s+(w[0]+w[1]*x-y)**2,0)/P.length;
+const lrGrad = w => { const g=[0,0]; LR.pts.forEach(([x,y])=>{ const r=w[0]+w[1]*x-y; g[0]+=2*r/LR.pts.length; g[1]+=2*r*x/LR.pts.length; }); return g; };
+function lrLS(){
+  const P=LR.pts.map(([x])=>[1,x]), y=LR.pts.map(p=>p[1]);
+  return lstsq(P,y,1e-12);
+}
+function lrStep(){ const g=lrGrad(LR.w); LR.w=[LR.w[0]-LR.eta*g[0], LR.w[1]-LR.eta*g[1]]; LR.path.push(LR.w.slice()); if (LR.path.length>400) LR.path.shift(); }
+function lrViews(){
+  const a=$('#cv-lr-data'), b=$('#cv-lr-loss');
+  return { dv: makeView2(a.clientWidth,a.clientHeight,0,5,0,4.6,{l:36,r:14,t:30,b:24}),
+           lv: makeView2(b.clientWidth,b.clientHeight,-2.5,4,-1,2,{l:40,r:14,t:30,b:24}) };
+}
+function drawLinreg(){
+  const {dv,lv}=lrViews();
+  { const {ctx,w,h}=prep($('#cv-lr-data')), v=dv;
+    drawAxes2(ctx,v,w,h,'x','y'); clipPlot(ctx,v,w,h);
+    LR.pts.forEach(([x,y])=>line(ctx,[[v.X(x),v.Y(y)],[v.X(x),v.Y(LR.w[0]+LR.w[1]*x)]],T.v2,1.6,[4,3]));
+    line(ctx,[[v.X(v.x0),v.Y(LR.w[0]+LR.w[1]*v.x0)],[v.X(v.x1),v.Y(LR.w[0]+LR.w[1]*v.x1)]],T.acc,2.6);
+    LR.pts.forEach(([x,y])=>dotAt(ctx,v.X(x),v.Y(y),T.v1,6));
+    ctx.restore();
+    title(ctx,`f(x) = ${fmt(LR.w[0])} + ${fmt(LR.w[1])}x   ·   TrainLoss = ${fmt(lrLoss(LR.w),3)}`);
+  }
+  { const {ctx,w,h}=prep($('#cv-lr-loss')), v=lv;
+    contourMap(ctx,v,w,h,(a,b)=>lrLoss([a,b]));
+    drawAxes2(ctx,v,w,h,'w₁ (intercept)','w₂ (slope)');
+    clipPlot(ctx,v,w,h);
+    const ls=lrLS(); cross(ctx,v.X(ls[0]),v.Y(ls[1]),T.ink);
+    line(ctx,LR.path.map(p=>[v.X(p[0]),v.Y(p[1])]),T.acc,2);
+    LR.path.forEach((p,i)=>{ if (i<LR.path.length-1) { ctx.beginPath(); ctx.arc(v.X(p[0]),v.Y(p[1]),2.2,0,TAU); ctx.fillStyle=T.acc; ctx.fill(); } });
+    const g=lrGrad(LR.w), nx=[LR.w[0]-LR.eta*g[0], LR.w[1]-LR.eta*g[1]];
+    arrow(ctx,v.X(LR.w[0]),v.Y(LR.w[1]),v.X(nx[0]),v.Y(nx[1]),T.v2,2,9);
+    dotAt(ctx,v.X(LR.w[0]),v.Y(LR.w[1]),T.acc,7);
+    ctx.restore();
+    title(ctx,`TrainLoss(w) over weight space · step ${LR.path.length-1}`);
+  }
+  const g=lrGrad(LR.w), L=lrLoss(LR.w), ls=lrLS(), Lmin=lrLoss(ls);
+  const n=LR.path.length, prev=n>2?lrLoss(LR.path[n-2]):Infinity;
+  const status = !isFinite(L)||L>1e4 ? pill('bad','diverged') : (L>prev+1e-12 ? pill('bad','loss went up: η too large') : Math.hypot(...g)<1e-3 ? pill('good','converged') : pill('info','descending'));
+  set('lr-stats', stats([
+    ['w = [w₁, w₂]', `[${fmt(LR.w[0],3)}, ${fmt(LR.w[1],3)}]`],
+    ['TrainLoss(w)', fmtG(L)],
+    ['∇TrainLoss', `[${fmtG(g[0])}, ${fmtG(g[1])}]`],
+    ['least-squares w', `[${fmt(ls[0],3)}, ${fmt(ls[1],3)}]`],
+    ['minimum loss', fmt(Lmin,4)],
+    ['status', status],
+  ]));
+}
+bindRange('lr-eta', v=>fmt(v,2), v=>{ LR.eta=v; drawLinreg(); });
+$('#lr-step').addEventListener('click',()=>{ stop('lr'); lrStep(); drawLinreg(); });
+$('#lr-run').addEventListener('click',e=>run('lr',e.target,()=>{ lrStep(); drawLinreg(); const L=lrLoss(LR.w); return isFinite(L) && L<1e5 && Math.hypot(...lrGrad(LR.w))>1e-4 && LR.path.length<399; },90));
+$('#lr-reset').addEventListener('click',()=>{ stop('lr'); LR.w=[1,0.57]; LR.path=[LR.w.slice()]; drawLinreg(); });
+$('#lr-data').addEventListener('click',()=>{ stop('lr'); LR.pts=[[1,1],[2,3],[4,3]]; LR.w=[1,0.57]; LR.path=[LR.w.slice()]; drawLinreg(); });
+{ const cv=$('#cv-lr-data');
+  draggable(cv,(px,py)=>{
+    const v=lrViews().dv, i=near(LR.pts.map(p=>[v.X(p[0]),v.Y(p[1])]),px,py);
+    let k=i;
+    if (k<0){ LR.pts.push([clamp(v.iX(px),0,5),clamp(v.iY(py),0,4.6)]); k=LR.pts.length-1; }
+    LR.path=[LR.w.slice()];
+    return (x,y)=>{ LR.pts[k]=[clamp(v.iX(x),0,5),clamp(v.iY(y),0,4.6)]; drawLinreg(); };
+  });
+  cv.addEventListener('dblclick',e=>{ const [px,py]=ptr(cv,e), v=lrViews().dv, i=near(LR.pts.map(p=>[v.X(p[0]),v.Y(p[1])]),px,py); if (i>=0 && LR.pts.length>2){ LR.pts.splice(i,1); drawLinreg(); } });
+  draggable($('#cv-lr-loss'),(px,py)=>{ stop('lr'); const v=lrViews().lv;
+    const f=(x,y)=>{ LR.w=[v.iX(x),v.iY(y)]; LR.path=[LR.w.slice()]; drawLinreg(); }; f(px,py); return f; });
+}
+
+/* =====================================================================
+   2.2 Linear classification: score, margin, hinge
+   ===================================================================== */
+const LC_LECT = [{x:[0,2],y:1},{x:[-2,0],y:1},{x:[1,-1],y:-1}];
+const LC = { pts:LC_LECT.map(p=>({x:p.x.slice(),y:p.y})), w:[0.5,1], loss:'hinge', cls:1, eta:0.2, steps:0, seed:3 };
+const LOSS = {
+  zo: m => m<=0?1:0,
+  hinge: m => Math.max(1-m,0),
+  logistic: m => Math.log(1+Math.exp(-m)),
+};
+const lcMargin = p => dot(LC.w,p.x)*p.y;
+function lcTrainLoss(kind){ return LC.pts.reduce((s,p)=>s+LOSS[kind](lcMargin(p)),0)/LC.pts.length; }
+function lcStep(){
+  const g=[0,0];
+  LC.pts.forEach(p=>{ const m=lcMargin(p), c = LC.loss==='hinge' ? (m<1?-1:0) : -sigm(-m); g[0]+=c*p.y*p.x[0]/LC.pts.length; g[1]+=c*p.y*p.x[1]/LC.pts.length; });
+  LC.w=[LC.w[0]-LC.eta*g[0], LC.w[1]-LC.eta*g[1]]; LC.steps++;
+  return Math.hypot(...g);
+}
+const lcView = () => { const c=$('#cv-lc-plane'); return eqView(c.clientWidth,c.clientHeight,0,0,3.1); };
+function drawLinclf(){
+  { const {ctx,w,h}=prep($('#cv-lc-plane')), v=lcView();
+    const P=RGB.panel, A=mix(P,RGB.v1,0.13), B=mix(P,RGB.v2,0.13);
+    heat(ctx,v,w,h,(x,y)=>LC.w[0]*x+LC.w[1]*y>=0?A:B,6);
+    drawAxes2(ctx,v,w,h,'x₁','x₂');
+    clipPlot(ctx,v,w,h);
+    const [a,b]=LC.w, n2=a*a+b*b;
+    if (n2>1e-9){
+      const d=[-b,a], R=20;
+      const seg=c=>[[v.X(a*c/n2-d[0]*R),v.Y(b*c/n2-d[1]*R)],[v.X(a*c/n2+d[0]*R),v.Y(b*c/n2+d[1]*R)]];
+      if (LC.loss==='hinge'){ line(ctx,seg(1),T.acc,1.2,[5,4]); line(ctx,seg(-1),T.acc,1.2,[5,4]); }
+      line(ctx,seg(0),T.acc,2.4);
+    }
+    LC.pts.forEach(p=>{
+      const X=v.X(p.x[0]), Y=v.Y(p.x[1]), m=lcMargin(p);
+      dotAt(ctx,X,Y,p.y>0?T.v1:T.v2,6);
+      if (m<=0) ringAt(ctx,X,Y,T.bad,11,2);
+      if (LC.pts.length<=8) label(ctx,`m = ${fmt(m)}`,X+12,Y-10,T.muted,F.small);
+    });
+    ctx.restore();
+    arrow(ctx,v.X(0),v.Y(0),v.X(a),v.Y(b),T.acc,2.6,11);
+    ringAt(ctx,v.X(a),v.Y(b),T.acc,9,1.5);
+    label(ctx,`w = [${fmt(a)}, ${fmt(b)}]`,v.X(a)+12,v.Y(b)-12,T.acc,F.num);
+    title(ctx, LC.loss==='hinge' ? 'Boundary w·φ(x) = 0 and margin-1 lines w·φ(x) = ±1' : 'Boundary w·φ(x) = 0');
+  }
+  { const {ctx,w,h}=prep($('#cv-lc-loss')), v=makeView2(ctx.canvas.clientWidth,ctx.canvas.clientHeight,-3,3,0,4,{l:36,r:14,t:30,b:24});
+    drawAxes2(ctx,v,w,h,'margin (w·φ(x))y','loss');
+    clipPlot(ctx,v,w,h);
+    const xs=[...Array(241)].map((_,i)=>-3+i*6/240);
+    line(ctx,[[v.X(-3),v.Y(1)],[v.X(0),v.Y(1)],[v.X(0),v.Y(0)],[v.X(3),v.Y(0)]],T.one,2.2);
+    line(ctx,xs.map(m=>[v.X(m),v.Y(LOSS.hinge(m))]),T.acc,LC.loss==='hinge'?3:1.8);
+    line(ctx,xs.map(m=>[v.X(m),v.Y(LOSS.logistic(m))]),T.v1,LC.loss==='logistic'?3:1.8,[6,4]);
+    LC.pts.forEach(p=>{ const m=clamp(lcMargin(p),-2.95,2.95); dotAt(ctx,v.X(m),v.Y(LOSS[LC.loss](m)),p.y>0?T.v1:T.v2,5.5); });
+    ctx.restore();
+    title(ctx,`Each example sits at its margin on the ${LC.loss} curve`);
+  }
+  const errs=LC.pts.filter(p=>lcMargin(p)<=0).length;
+  set('lc-stats', stats([
+    ['w', `[${fmt(LC.w[0],3)}, ${fmt(LC.w[1],3)}]`],
+    ['training errors', `${errs} of ${LC.pts.length} ${errs?pill('bad','misclassified'):pill('good','all correct')}`],
+    ['zero-one TrainLoss', fmt(lcTrainLoss('zo'),3)],
+    ['hinge TrainLoss', fmt(lcTrainLoss('hinge'),3)],
+    ['logistic TrainLoss', fmt(lcTrainLoss('logistic'),3)],
+    ['GD steps', LC.steps],
+  ]));
+}
+bindSeg('lc-loss', v=>{ LC.loss=v; drawLinclf(); });
+bindSeg('lc-cls', v=>{ LC.cls=+v; });
+bindRange('lc-eta', v=>fmt(v,2), v=>{ LC.eta=v; });
+$('#lc-step').addEventListener('click',()=>{ stop('lc'); lcStep(); drawLinclf(); });
+$('#lc-run').addEventListener('click',e=>run('lc',e.target,()=>{ const g=lcStep(); drawLinclf(); return g>1e-4 && LC.steps<2000; },70));
+$('#lc-reset').addEventListener('click',()=>{ stop('lc'); LC.w=[0.5,1]; LC.steps=0; drawLinclf(); });
+$('#lc-data').addEventListener('click',()=>{ stop('lc'); LC.pts=LC_LECT.map(p=>({x:p.x.slice(),y:p.y})); LC.w=[0.5,1]; LC.steps=0; drawLinclf(); });
+$('#lc-more').addEventListener('click',()=>{ stop('lc'); const r=rng(++LC.seed); LC.pts=[];
+  for (let i=0;i<18;i++){ const y=i%2?1:-1; LC.pts.push({x:[clamp(-0.9*y+0.9*gauss(r),-2.9,2.9), clamp(0.8*y+0.9*gauss(r),-2.9,2.9)], y}); }
+  LC.w=[0.5,1]; LC.steps=0; drawLinclf(); });
+draggable($('#cv-lc-plane'),(px,py)=>{
+  stop('lc'); const v=lcView();
+  if (Math.hypot(px-v.X(LC.w[0]),py-v.Y(LC.w[1]))<16) return (x,y)=>{ LC.w=[v.iX(x),v.iY(y)]; LC.steps=0; drawLinclf(); };
+  let i=near(LC.pts.map(p=>[v.X(p.x[0]),v.Y(p.x[1])]),px,py);
+  if (i<0){ LC.pts.push({x:[v.iX(px),v.iY(py)],y:LC.cls}); i=LC.pts.length-1; drawLinclf(); }
+  return (x,y)=>{ LC.pts[i].x=[clamp(v.iX(x),-3,3),clamp(v.iY(y),-3,3)]; drawLinclf(); };
+});
+$('#cv-lc-plane').addEventListener('dblclick',e=>{ const c=e.currentTarget, [px,py]=ptr(c,e), v=lcView(), i=near(LC.pts.map(p=>[v.X(p.x[0]),v.Y(p.x[1])]),px,py); if (i>=0 && LC.pts.length>1){ LC.pts.splice(i,1); drawLinclf(); } });
+
+/* =====================================================================
+   3.1 Overfitting, bias and variance (polynomials on sin 2πx)
+   ===================================================================== */
+const truthF = x => Math.sin(TAU*x);
+const DMAX = 12;
+function sampleSet(seed, n, sd){ const r=rng(seed); return [...Array(n)].map(()=>{ const x=r(); return [x, truthF(x)+sd*gauss(r)]; }); }
+function polyFit(S, d){ return lstsq(S.map(([x])=>legendre(x,d)), S.map(p=>p[1]), 1e-10); }
+const polyEval = (c, x) => dot(c, legendre(x, c.length-1));
+const mse = (c, S) => S.reduce((s,[x,y])=>s+(polyEval(c,x)-y)**2,0)/S.length;
+const OF = { seed:11, n:15, sd:0.24, deg:3, many:true, cache:null };
+function ofCompute(){
+  const train=sampleSet(OF.seed,OF.n,OF.sd), test=sampleSet(9001,400,OF.sd);
+  // other training sets: same inputs x, fresh noise (fixed design), so bias and variance separate cleanly
+  const others=[...Array(60)].map((_,r)=>{ const g=rng(OF.seed*131+r+1); return train.map(([x])=>[x, truthF(x)+OF.sd*gauss(g)]); });
+  const grid=[...Array(91)].map((_,i)=>0.05+i/100);
+  const rows=[];
+  for (let d=0; d<=DMAX; d++){
+    const c=polyFit(train,d);
+    const fits=others.map(S=>polyFit(S,d));
+    const preds=fits.map(f=>grid.map(x=>polyEval(f,x)));
+    let b2=0, va=0;
+    grid.forEach((x,i)=>{ const m=preds.reduce((s,p)=>s+p[i],0)/preds.length; b2+=(m-truthF(x))**2; va+=preds.reduce((s,p)=>s+(p[i]-m)**2,0)/preds.length; });
+    rows.push({ d, c, fits, train:mse(c,train), test:mse(c,test), bias2:b2/grid.length, vari:va/grid.length });
+  }
+  OF.cache={ train, rows };
+}
+function drawOverfit(){
+  if (!OF.cache) ofCompute();
+  const {train, rows}=OF.cache, R=rows[OF.deg];
+  { const {ctx,w,h}=prep($('#cv-of-fit')), v=makeView2(w,h,0,1,-1.9,1.9,{l:36,r:14,t:30,b:24});
+    drawAxes2(ctx,v,w,h,'x','y'); clipPlot(ctx,v,w,h);
+    const xs=[...Array(201)].map((_,i)=>i/200);
+    if (OF.many) R.fits.slice(0,20).forEach(c=>line(ctx,xs.map(x=>[v.X(x),v.Y(polyEval(c,x))]),rgba(RGB.acc,.22),1.2));
+    line(ctx,xs.map(x=>[v.X(x),v.Y(truthF(x))]),T.one,2,[6,4]);
+    line(ctx,xs.map(x=>[v.X(x),v.Y(polyEval(R.c,x))]),T.acc,2.8);
+    train.forEach(([x,y])=>dotAt(ctx,v.X(x),v.Y(y),T.v1,4.5));
+    ctx.restore();
+    title(ctx,`Degree ${OF.deg} polynomial, n = ${OF.n}`);
+  }
+  { const {ctx,w,h}=prep($('#cv-of-err'));
+    const lg=x=>Math.log10(Math.max(x,1e-4)), v=makeView2(w,h,-0.3,DMAX+0.3,-4,1.3,{l:44,r:14,t:30,b:24});
+    drawAxes2(ctx,v,w,h,'degree','error',{logY:true,xStep:2});
+    clipPlot(ctx,v,w,h);
+    ctx.fillStyle=T['acc-soft']; ctx.fillRect(v.X(OF.deg-0.4),v.pad.t,v.X(OF.deg+0.4)-v.X(OF.deg-0.4),h-v.pad.t-v.pad.b);
+    if (OF.sd>0) line(ctx,[[v.X(-1),v.Y(lg(OF.sd**2))],[v.X(DMAX+1),v.Y(lg(OF.sd**2))]],T.muted,1,[2,4]);
+    line(ctx,rows.map(r=>[v.X(r.d),v.Y(lg(r.bias2))]),T.one,1.8,[6,4]);
+    line(ctx,rows.map(r=>[v.X(r.d),v.Y(lg(r.vari))]),T.acc,1.8,[6,4]);
+    line(ctx,rows.map(r=>[v.X(r.d),v.Y(lg(r.train))]),T.v1,2.4);
+    line(ctx,rows.map(r=>[v.X(r.d),v.Y(lg(r.test))]),T.v2,2.4);
+    rows.forEach(r=>{ dotAt(ctx,v.X(r.d),v.Y(lg(r.train)),T.v1,3.5); dotAt(ctx,v.X(r.d),v.Y(lg(r.test)),T.v2,3.5); });
+    if (OF.sd>0) label(ctx,'σ² (noise floor)',v.X(DMAX)-2,v.Y(lg(OF.sd**2))-9,T.muted,F.small,'right');
+    ctx.restore();
+    title(ctx,'Error against model complexity (log scale)');
+  }
+  const best=rows.reduce((a,b)=>b.test<a.test?b:a);
+  const state = OF.deg<best.d && R.bias2>R.vari ? pill('warn','underfitting: high bias') : OF.deg>best.d && R.test>best.test*1.15 ? pill('bad','overfitting: high variance') : pill('good','near the sweet spot');
+  set('of-stats', stats([
+    ['training error', fmtG(R.train)],
+    ['testing error', fmtG(R.test)],
+    ['bias²', fmtG(R.bias2)],
+    ['variance', fmtG(R.vari)],
+    ['best degree on test', best.d],
+    ['verdict', state],
+  ]));
+}
+bindRange('of-deg', v=>v, v=>{ OF.deg=v; drawOverfit(); });
+bindRange('of-n', v=>v, v=>{ OF.n=v; OF.cache=null; drawOverfit(); });
+bindRange('of-sd', v=>fmt(v,2), v=>{ OF.sd=v; OF.cache=null; drawOverfit(); });
+$('#of-many').addEventListener('change',e=>{ OF.many=e.target.checked; drawOverfit(); });
+$('#of-new').addEventListener('click',()=>{ OF.seed++; OF.cache=null; drawOverfit(); });
+
+/* =====================================================================
+   3.2 k-fold cross-validation
+   ===================================================================== */
+const CVS = { seed:5, m:30, k:5, deg:3, round:0, sd:0.3, cache:null };
+const CV_DMAX = 10;
+function cvCompute(){
+  const data=sampleSet(CVS.seed*7+2,CVS.m,CVS.sd), test=sampleSet(777,400,CVS.sd);
+  const order=shuffle([...Array(CVS.m).keys()], rng(CVS.seed));
+  const fold=Array(CVS.m); order.forEach((idx,pos)=>fold[idx]=pos%CVS.k);
+  const rows=[];
+  for (let d=0; d<=CV_DMAX; d++){
+    const folds=[], fits=[];
+    for (let i=0;i<CVS.k;i++){
+      const tr=data.filter((_,j)=>fold[j]!==i), va=data.filter((_,j)=>fold[j]===i);
+      const c=polyFit(tr,d); fits.push(c); folds.push(mse(c,va));
+    }
+    const all=polyFit(data,d);
+    rows.push({ d, folds, fits, cv:folds.reduce((a,b)=>a+b,0)/CVS.k, train:mse(all,data), test:mse(all,test) });
+  }
+  CVS.cache={ data, fold, order, rows };
+}
+function drawCV(){
+  if (!CVS.cache) cvCompute();
+  const {data, fold, rows}=CVS.cache, k=CVS.k, R=rows[CVS.deg];
+  CVS.round=Math.min(CVS.round,k-1);
+  { const cv=$('#cv-cv-folds'), {ctx,w,h}=prep(cv), L=64, Rr=12, Tp=26, B=8;
+    const sorted=[...Array(CVS.m).keys()].sort((a,b)=>fold[a]-fold[b]||a-b);
+    const cw=(w-L-Rr)/CVS.m, rh=(h-Tp-B)/k;
+    for (let i=0;i<k;i++){
+      const y=Tp+i*rh;
+      if (i===CVS.round){ ctx.fillStyle=T['acc-soft']; ctx.fillRect(0,y,w,rh); }
+      if (rh>=9) label(ctx,`round ${i+1}`,8,y+rh/2,i===CVS.round?T.ink:T.muted,rh>=14?F.tick:F.small);
+      sorted.forEach((j,c)=>{ const val=fold[j]===i; ctx.fillStyle=val?T.v2:rgba(RGB.v1,.55); ctx.fillRect(L+c*cw+0.5,y+1.5,Math.max(1,cw-1),Math.max(1,rh-3)); });
+    }
+    title(ctx,`${k} folds of ${CVS.m} examples: ${(CVS.m/k)%1?'about ':''}${fmt(CVS.m/k,CVS.m%k?1:0)} each`);
+    cv._rows={Tp,rh,k};
+  }
+  { const {ctx,w,h}=prep($('#cv-cv-fit')), v=makeView2(w,h,0,1,-2,2,{l:36,r:14,t:30,b:24});
+    drawAxes2(ctx,v,w,h,'x','y'); clipPlot(ctx,v,w,h);
+    const xs=[...Array(201)].map((_,i)=>i/200), c=R.fits[CVS.round];
+    line(ctx,xs.map(x=>[v.X(x),v.Y(truthF(x))]),T.one,1.6,[6,4]);
+    line(ctx,xs.map(x=>[v.X(x),v.Y(polyEval(c,x))]),T.acc,2.6);
+    data.forEach(([x,y],j)=>{ if (fold[j]===CVS.round) dotAt(ctx,v.X(x),v.Y(y),T.v2,5,true); else dotAt(ctx,v.X(x),v.Y(y),T.v1,4.5); });
+    ctx.restore();
+    title(ctx,`Round ${CVS.round+1}, degree ${CVS.deg}: fold error ${fmtG(R.folds[CVS.round])}`);
+  }
+  { const {ctx,w,h}=prep($('#cv-cv-curve')), lg=x=>Math.log10(Math.max(x,1e-4)), v=makeView2(w,h,-0.3,CV_DMAX+0.3,-2,1.6,{l:44,r:14,t:30,b:24});
+    drawAxes2(ctx,v,w,h,'degree','error',{logY:true,xStep:2});
+    clipPlot(ctx,v,w,h);
+    ctx.fillStyle=T['acc-soft']; ctx.fillRect(v.X(CVS.deg-0.4),v.pad.t,v.X(CVS.deg+0.4)-v.X(CVS.deg-0.4),h-v.pad.t-v.pad.b);
+    rows.forEach(r=>r.folds.forEach(f=>{ ctx.beginPath(); ctx.arc(v.X(r.d),v.Y(lg(f)),2.2,0,TAU); ctx.fillStyle=rgba(RGB.acc,.35); ctx.fill(); }));
+    line(ctx,rows.map(r=>[v.X(r.d),v.Y(lg(r.train))]),T.v1,2);
+    line(ctx,rows.map(r=>[v.X(r.d),v.Y(lg(r.test))]),T.v2,2,[6,4]);
+    line(ctx,rows.map(r=>[v.X(r.d),v.Y(lg(r.cv))]),T.acc,2.8);
+    const pick=rows.reduce((a,b)=>b.cv<a.cv?b:a);
+    ctx.restore();
+    star(ctx,v.X(pick.d),v.Y(lg(pick.cv)),T.acc,9);
+    title(ctx,`CV picks degree ${pick.d}`);
+  }
+  const pick=rows.reduce((a,b)=>b.cv<a.cv?b:a), tbest=rows.reduce((a,b)=>b.test<a.test?b:a);
+  set('cv-stats', stats([
+    ['training fraction 1 − 1/k', fmt(1-1/k,3)],
+    ['CV error at this degree', fmtG(R.cv)],
+    ['CV choice', `degree ${pick.d}`],
+    ['best on fresh test data', `degree ${tbest.d}`],
+    ['training runs', `${k} folds × ${CV_DMAX+1} degrees = ${k*(CV_DMAX+1)}`],
+    ['mode', k===CVS.m?pill('info','leave-one-out'):pill('info',`${k}-fold`)],
+  ]));
+}
+const cvK=bindRange('cv-k', v=>v, v=>{ CVS.k=v; CVS.cache=null; drawCV(); });
+bindRange('cv-deg', v=>v, v=>{ CVS.deg=v; drawCV(); });
+$('#cv-loo').addEventListener('click',()=>{ CVS.k=CVS.m; cvK.value=CVS.m; $('#cv-k-o').textContent=CVS.m; CVS.cache=null; drawCV(); });
+$('#cv-best').addEventListener('click',()=>{ if (!CVS.cache) cvCompute(); const p=CVS.cache.rows.reduce((a,b)=>b.cv<a.cv?b:a); CVS.deg=p.d; $('#cv-deg').value=p.d; $('#cv-deg-o').textContent=p.d; drawCV(); });
+$('#cv-new').addEventListener('click',()=>{ CVS.seed++; CVS.cache=null; drawCV(); });
+$('#cv-cv-folds').addEventListener('click',e=>{ const c=e.currentTarget, g=c._rows; if (!g) return; const [,y]=ptr(c,e), i=Math.floor((y-g.Tp)/g.rh); if (i>=0 && i<g.k){ CVS.round=i; drawCV(); } });
+
+/* =====================================================================
+   4.1 Perceptron learning rule
+   ===================================================================== */
+const PC_LECT = [[5,1,0],[2,1,0],[1,1,1],[3,3,1],[4,2,0],[2,3,1]];
+const PC = { set:'lecture', ex:PC_LECT.map(e=>e.slice()), w:[0,0,0], prev:null, alpha:1, it:0, idx:0, streak:0, trace:[], hist:[[0,0,0]], miss:[], seed:1 };
+const pcOut = (w,e) => (w[0]+w[1]*e[0]+w[2]*e[1])>=0?1:0;
+const pcDone = () => PC.streak>=PC.ex.length;
+function pcReset(w=[0,0,0]){ PC.w=w.slice(); PC.prev=null; PC.it=0; PC.idx=0; PC.streak=0; PC.trace=[]; PC.hist=[w.slice()]; PC.miss=[]; }
+function pcStep(){
+  if (pcDone()) return false;
+  const e=PC.ex[PC.idx], I=[1,e[0],e[1]], O=pcOut(PC.w,e), Tt=e[2], wold=PC.w.slice();
+  PC.it++;
+  if (O!==Tt){ PC.prev=wold; PC.w=PC.w.map((wj,j)=>wj+PC.alpha*I[j]*(Tt-O)); PC.streak=0; PC.miss.push(PC.it); }
+  else PC.streak++;
+  PC.trace.push({ it:PC.it, e:PC.idx, wold, I, T:Tt, O, wnew:PC.w.slice() });
+  PC.hist.push(PC.w.slice());
+  PC.idx=(PC.idx+1)%PC.ex.length;
+  return true;
+}
+function pcData(kind){
+  PC.set=kind; const r=rng(++PC.seed);
+  if (kind==='lecture') PC.ex=PC_LECT.map(e=>e.slice());
+  else if (kind==='sep'){ const a=-0.6+r()*1.2, c=2.2+r()*0.6; PC.ex=[];
+    while (PC.ex.length<10){ const x=0.4+r()*5.2, y=0.3+r()*3.9, s=y-(c+a*(x-3)); if (Math.abs(s)>0.35) PC.ex.push([x,y,s>0?1:0]); } }
+  else { PC.ex=[]; for (let i=0;i<10;i++){ const t=i%2; PC.ex.push([clamp(3+(t?-0.5:0.5)+1.1*gauss(r),0.3,5.8), clamp(2.2+(t?0.4:-0.4)+0.9*gauss(r),0.3,4.3), t]); } }
+  pcReset();
+}
+const pcView = () => { const c=$('#cv-pc-plane'); return makeView2(c.clientWidth,c.clientHeight,0,6.2,0,4.6,{l:34,r:14,t:30,b:24}); };
+function boundarySeg(v,w){ // points on w0 + w1 x + w2 y = 0 inside the view
+  const [w0,w1,w2]=w;
+  if (Math.abs(w2)>Math.abs(w1)) return [[v.x0,-(w0+w1*v.x0)/w2],[v.x1,-(w0+w1*v.x1)/w2]];
+  if (Math.abs(w1)>1e-12) return [[-(w0+w2*v.y0)/w1,v.y0],[-(w0+w2*v.y1)/w1,v.y1]];
+  return null;
+}
+function drawPerceptron(){
+  { const {ctx,w,h}=prep($('#cv-pc-plane')), v=pcView();
+    const on=mix(RGB.panel,RGB.acc,0.14);
+    if (PC.w.some(x=>x)) heat(ctx,v,w,h,(x,y)=>pcOut(PC.w,[x,y])?on:RGB.panel,6);
+    drawAxes2(ctx,v,w,h,'I₁','I₂');
+    clipPlot(ctx,v,w,h);
+    if (PC.prev){ const s=boundarySeg(v,PC.prev); if (s) line(ctx,s.map(p=>[v.X(p[0]),v.Y(p[1])]),T.one,1.5,[5,4]); }
+    const s=boundarySeg(v,PC.w); if (s) line(ctx,s.map(p=>[v.X(p[0]),v.Y(p[1])]),T.acc,2.6);
+    const last=PC.trace[PC.trace.length-1];
+    PC.ex.forEach((e,i)=>{
+      const X=v.X(e[0]), Y=v.Y(e[1]);
+      dotAt(ctx,X,Y,e[2]?T.v1:T.v2,6.5);
+      if (pcOut(PC.w,e)!==e[2] && PC.w.some(x=>x)) ringAt(ctx,X,Y,T.bad,11,1.8);
+      if (last && last.e===i) ringAt(ctx,X,Y,T.acc,15,2.5);
+      if (PC.set==='lecture') label(ctx,`e${i+1}`,X+10,Y-11,T.muted,F.tick);
+    });
+    ctx.restore();
+    title(ctx,`w = (${PC.w.map(x=>fmt(x,PC.alpha%1?1:0)).join(', ')})  ·  iteration ${PC.it}`);
+  }
+  { const {ctx,w,h}=prep($('#cv-pc-w')), H=PC.hist, N=Math.max(12,H.length-1);
+    let lo=-1, hi=1; H.forEach(r=>r.forEach(x=>{ lo=Math.min(lo,x); hi=Math.max(hi,x); }));
+    const pad=(hi-lo)*0.1, v=makeView2(w,h,0,N,lo-pad,hi+pad,{l:40,r:14,t:30,b:24});
+    drawAxes2(ctx,v,w,h,'iteration','weight');
+    clipPlot(ctx,v,w,h);
+    line(ctx,[[v.X(0),v.Y(0)],[v.X(N),v.Y(0)]],T.rule,1);
+    [T.one,T.v1,T.v2].forEach((c,j)=>{ const pts=[]; H.forEach((r,i)=>{ if (i) pts.push([v.X(i),v.Y(H[i-1][j])]); pts.push([v.X(i),v.Y(r[j])]); }); line(ctx,pts,c,2.2); });
+    PC.miss.forEach(i=>{ ctx.beginPath(); ctx.arc(v.X(i),v.Y(lo-pad*0.5),3,0,TAU); ctx.fillStyle=T.bad; ctx.fill(); });
+    ctx.restore();
+    title(ctx,`${PC.miss.length} updates in ${PC.it} iterations`);
+  }
+  const rows=PC.trace.slice(-8), f=a=>'('+a.map(x=>fmt(x,PC.alpha%1?1:0)).join(' ')+')';
+  set('pc-trace','<tr><th>it</th><th>w old</th><th>I</th><th>T</th><th>O</th><th>w new</th></tr>'+
+    (rows.length?rows.map((r,i)=>`<tr${i===rows.length-1?' class="cur"':''}><td>${r.it}</td><td>${f(r.wold)}</td><td>(${r.I.map(x=>fmt(x,PC.set==='lecture'?0:1)).join(' ')})</td><td>${r.T}</td><td class="${r.T===r.O?'ok':'bad'}">${r.O}</td><td>${f(r.wnew)}</td></tr>`).join('')
+      :'<tr><td colspan="6" style="text-align:left;font-family:var(--f-body);color:var(--muted)">Press “One example” or Run.</td></tr>'));
+  set('pc-status', pcDone() ? pill('good',`Converged: a full pass with no mistakes after ${PC.it} iterations`)
+    : PC.set==='non' && PC.it>=60 ? pill('bad','Not linearly separable: the weights never settle')
+    : pill('info',`Next: e${PC.idx+1}`));
+}
+bindSeg('pc-set', v=>{ stop('pc'); pcData(v); drawPerceptron(); });
+bindRange('pc-alpha', v=>fmt(v,1), v=>{ PC.alpha=v; });
+$('#pc-step').addEventListener('click',()=>{ stop('pc'); pcStep(); drawPerceptron(); });
+$('#pc-run').addEventListener('click',e=>run('pc',e.target,()=>{ const ok=pcStep(); drawPerceptron(); return ok && PC.it<300; },PC.set==='lecture'?380:160));
+$('#pc-reset').addEventListener('click',()=>{ stop('pc'); pcReset(); drawPerceptron(); });
+$('#pc-rand').addEventListener('click',()=>{ stop('pc'); const r=rng(++PC.seed); pcReset([-2+4*r(),-1+2*r(),-1+2*r()].map(x=>Math.round(x*10)/10)); drawPerceptron(); });
+draggable($('#cv-pc-plane'),(px,py)=>{
+  const v=pcView(), i=near(PC.ex.map(e=>[v.X(e[0]),v.Y(e[1])]),px,py);
+  if (i<0) return null; stop('pc');
+  return (x,y)=>{ PC.ex[i][0]=clamp(v.iX(x),0.1,6.1); PC.ex[i][1]=clamp(v.iY(y),0.1,4.5); pcReset(); drawPerceptron(); };
+});
+
+/* =====================================================================
+   4.2 Boolean functions and the XOR network
+   ===================================================================== */
+const BOOL = { AND:(a,b)=>a&b, OR:(a,b)=>a|b, NAND:(a,b)=>1-(a&b), NOT:(a)=>1-a, XOR:(a,b)=>a^b };
+const CORNERS = [[0,0],[0,1],[1,0],[1,1]];
+const BO = { fn:'AND', w1:1, w2:1, th:1.5, sel:[1,0], epochs:0, learning:false };
+const boOut = (a,b) => (BO.w1*a+BO.w2*b-BO.th)>=0?1:0;
+function boSync(){ [['bo-w1',BO.w1],['bo-w2',BO.w2],['bo-th',BO.th]].forEach(([id,x])=>{ $('#'+id).value=x; $('#'+id+'-o').textContent=fmt(x,2); }); }
+function boEpoch(){
+  let wrong=0;
+  CORNERS.forEach(([a,b])=>{ const T_=BOOL[BO.fn](a,b), O=boOut(a,b);
+    if (O!==T_){ wrong++; const d=0.5*(T_-O); BO.th-=d; BO.w1+=d*a; BO.w2+=d*b; } });
+  BO.epochs++;
+  return wrong;
+}
+const boView = h => { const c=$('#cv-bo-single'); return eqView(c.clientWidth,h||c.clientHeight,0.5,0.5,0.9,{l:34,r:14,t:30,b:24}); };
+function drawBoolean(){
+  { const {ctx,w,h}=prep($('#cv-bo-single')), v=boView();
+    const on=mix(RGB.panel,RGB.acc,0.16);
+    heat(ctx,v,w,h,(x,y)=>(BO.w1*x+BO.w2*y-BO.th)>=0?on:RGB.panel,5);
+    drawAxes2(ctx,v,w,h,'I₁','I₂',{xStep:0.5});
+    clipPlot(ctx,v,w,h);
+    const s=boundarySeg(v,[-BO.th,BO.w1,BO.w2]); if (s) line(ctx,s.map(p=>[v.X(p[0]),v.Y(p[1])]),T.acc,2.6);
+    ctx.restore();
+    CORNERS.forEach(([a,b])=>{ const t=BOOL[BO.fn](a,b), o=boOut(a,b), X=v.X(a), Y=v.Y(b);
+      dotAt(ctx,X,Y,t?T.v1:T.v2,8); if (o!==t) ringAt(ctx,X,Y,T.bad,14,2.2);
+      label(ctx,`O=${o}`,X+(a?-14:14),Y+(b?16:-16),o===t?T.muted:T.bad,F.num,a?'right':'left'); });
+    title(ctx,`${BO.fn==='NOT'?'NOT I₁':BO.fn}: O = step(${fmt(BO.w1,1)}·I₁ + ${fmt(BO.w2,1)}·I₂ − ${fmt(BO.th,1)})`);
+  }
+  { const cv=$('#cv-bo-net'), {ctx,w,h}=prep(cv), [x1,x2]=BO.sel;
+    const y3=(x1+x2-1.5)>=0?1:0, y=(x1+x2-2*y3-0.5)>=0?1:0;
+    // network diagram (top band)
+    const top=Math.min(h*0.46, 190), b0=30, bh=top-b0;
+    const node=(X,Y,txt,val,r,sub,subRight)=>{ ctx.beginPath(); ctx.arc(X,Y,r,0,TAU); ctx.fillStyle=val?T.acc:T.panel; ctx.fill(); ctx.lineWidth=2; ctx.strokeStyle=T.acc; ctx.stroke();
+      ctx.font=F.lab; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillStyle=val?T.panel:T.ink; ctx.fillText(txt,X,Y);
+      if (sub) label(ctx,sub,subRight?X+r+6:X,subRight?Y:Y+r+10,T.muted,F.small,subRight?'left':'center'); };
+    const edge=(ax,ay,bx,by,wt,col)=>{ arrow(ctx,ax,ay,bx,by,col,1.6,8); label(ctx,wt,ax+(bx-ax)*0.3,ay+(by-ay)*0.3-9,col,F.num,'center'); };
+    const P1=[w*0.12,b0+bh*0.38], P2=[w*0.12,b0+bh*0.86], H3=[w*0.48,b0+bh*0.08+6], Y5=[w*0.84,b0+bh*0.6];
+    const sh=(a,b,r=18)=>{ const d=Math.hypot(b[0]-a[0],b[1]-a[1]); return [a[0]+(b[0]-a[0])*r/d,a[1]+(b[1]-a[1])*r/d,b[0]-(b[0]-a[0])*r/d,b[1]-(b[1]-a[1])*r/d]; };
+    edge(...sh(P1,H3),'1',T.muted); edge(...sh(P2,H3),'1',T.muted);
+    edge(...sh(P1,Y5),'1',T.muted); edge(...sh(P2,Y5),'1',T.muted);
+    edge(...sh(H3,Y5),'−2',T.v2);
+    node(...P1,`x₁=${x1}`,x1,22); node(...P2,`x₂=${x2}`,x2,22); node(...H3,`y₃=${y3}`,y3,22,'θ = 1.5',true); node(...Y5,`y=${y}`,y,22,'θ = 0.5');
+    // input space (bottom)
+    const v=eqView(w,h,0.5,0.5,0.8,{l:40,r:14,t:top+20,b:24});
+    const on=mix(RGB.panel,RGB.v1,0.16);
+    heat(ctx,v,w,h,(a,b)=>{ const hh=(a+b-1.5)>=0?1:0; return (a+b-2*hh-0.5)>=0?on:RGB.panel; },5);
+    drawAxes2(ctx,v,w,h,'x₁','x₂',{xStep:0.5});
+    clipPlot(ctx,v,w,h);
+    line(ctx,[[v.X(-1),v.Y(2.5)],[v.X(2.5),v.Y(-1)]],T.acc,2,[6,4]);
+    line(ctx,[[v.X(-1),v.Y(1.5)],[v.X(1.5),v.Y(-1)]],T.v1,1.4,[2,3]);
+    ctx.restore();
+    label(ctx,'y₃: x₁ + x₂ = 1.5',v.X(1.3)+4,v.Y(0.3),T.acc,F.small,'left');
+    CORNERS.forEach(([a,b])=>{ const t=a^b, X=v.X(a), Y=v.Y(b); dotAt(ctx,X,Y,t?T.v1:T.v2,7.5); if (a===x1&&b===x2) ringAt(ctx,X,Y,T.acc,13,2.5); });
+    cv._v=v;
+  }
+  const wrong=CORNERS.filter(([a,b])=>boOut(a,b)!==BOOL[BO.fn](a,b)).length;
+  set('bo-status', wrong===0 ? pill('good','All four inputs correct') + (BO.epochs?` <span class="hint">after ${BO.epochs} epochs</span>`:'')
+    : BO.fn==='XOR' && BO.epochs>=12 ? pill('bad',`No line works: still ${wrong} wrong after ${BO.epochs} epochs`)
+    : pill('warn',`${wrong} of 4 wrong`));
+}
+bindSeg('bo-fn', v=>{ stop('bo'); BO.fn=v; BO.epochs=0; drawBoolean(); });
+['w1','w2','th'].forEach(k=>bindRange('bo-'+k, x=>fmt(x,2), x=>{ stop('bo'); BO[k]=x; BO.epochs=0; drawBoolean(); }));
+$('#bo-zero').addEventListener('click',()=>{ stop('bo'); BO.w1=BO.w2=BO.th=0; BO.epochs=0; boSync(); drawBoolean(); });
+$('#bo-learn').addEventListener('click',e=>{ BO.epochs=0; run('bo',e.target,()=>{ const wr=boEpoch(); boSync(); drawBoolean(); return wr>0 && BO.epochs<40; },350,['Learn with the rule','Pause']); });
+$('#cv-bo-net').addEventListener('click',e=>{ const c=e.currentTarget, v=c._v; if (!v) return; const [px,py]=ptr(c,e); const i=near(CORNERS.map(([a,b])=>[v.X(a),v.Y(b)]),px,py,40); if (i>=0){ BO.sel=CORNERS[i]; drawBoolean(); } });
+
+/* =====================================================================
+   4.3 Adaline: learning rate, batch GD, SGD, mini-batch
+   ===================================================================== */
+const AD = { N:20, data:null, start:[-1.5,2.1], eta:Math.pow(10,-0.85), b:5, sched:false, show:{gd:true,sgd:true,mb:true}, M:null, t:0, seed:4 };
+{ const r=rng(42); AD.data=[...Array(AD.N)].map(()=>{ const x=4*r(); return [x, 0.6+0.7*x+0.35*gauss(r)]; }); }
+const adE = w => AD.data.reduce((s,[x,t])=>s+(t-w[0]-w[1]*x)**2,0)/(2*AD.N);
+const AD_LS = lstsq(AD.data.map(([x])=>[1,x]), AD.data.map(d=>d[1]), 1e-12), AD_EMIN = adE(AD_LS);
+const AD_LMAX = (()=>{ let a=0,b=0,d=0; AD.data.forEach(([x])=>{ a+=1; b+=x; d+=x*x; }); a/=AD.N; b/=AD.N; d/=AD.N; const m=(a+d)/2; return m+Math.sqrt(((a-d)/2)**2+b*b); })();
+function adReset(){
+  const r=rng(++AD.seed);
+  const mk=(bs)=>({ w:AD.start.slice(), path:[AD.start.slice()], E:[adE(AD.start)], bs, order:[], r });
+  AD.M={ gd:mk(AD.N), sgd:mk(1), mb:mk(AD.b) }; AD.t=0;
+}
+function adBatch(m){
+  if (m.bs>=AD.N) return AD.data;
+  const out=[]; while (out.length<m.bs){ if (!m.order.length) m.order=shuffle([...Array(AD.N).keys()],m.r); out.push(AD.data[m.order.pop()]); }
+  return out;
+}
+function adStep(){
+  const eta = AD.sched ? AD.eta/(1+AD.t/20) : AD.eta;
+  Object.values(AD.M).forEach(m=>{
+    if (!isFinite(m.E[m.E.length-1]) || m.E[m.E.length-1]>1e8){ m.E.push(Infinity); return; }
+    const B=adBatch(m), g=[0,0];
+    B.forEach(([x,t])=>{ const e=t-m.w[0]-m.w[1]*x; g[0]-=e/B.length; g[1]-=e*x/B.length; });
+    m.w=[m.w[0]-eta*g[0], m.w[1]-eta*g[1]]; m.path.push(m.w.slice()); m.E.push(adE(m.w));
+  });
+  AD.t++;
+}
+const AD_COL = { gd:'acc', sgd:'v2', mb:'v1' };
+const adView = () => { const c=$('#cv-ad-surf'); return makeView2(c.clientWidth,c.clientHeight,-2,3,-0.8,2.4,{l:40,r:14,t:30,b:24}); };
+function drawAdaline(){
+  { const {ctx,w,h}=prep($('#cv-ad-surf')), v=adView();
+    contourMap(ctx,v,w,h,(a,b)=>adE([a,b])-AD_EMIN*0.98,'one');
+    drawAxes2(ctx,v,w,h,'w₀','w₁');
+    clipPlot(ctx,v,w,h);
+    cross(ctx,v.X(AD_LS[0]),v.Y(AD_LS[1]),T.ink);
+    ['mb','sgd','gd'].forEach(k=>{ if (!AD.show[k]) return; const m=AD.M[k];
+      line(ctx,m.path.map(p=>[v.X(p[0]),v.Y(p[1])]),T[AD_COL[k]],k==='gd'?2.4:1.6);
+      const p=m.path[m.path.length-1]; if (isFinite(p[0])&&isFinite(p[1])) dotAt(ctx,v.X(p[0]),v.Y(p[1]),T[AD_COL[k]],5.5); });
+    ctx.restore();
+    dotAt(ctx,v.X(AD.start[0]),v.Y(AD.start[1]),T.ink,4);
+    title(ctx,`E(w) and ${AD.t} updates · × marks the minimum`);
+  }
+  { const {ctx,w,h}=prep($('#cv-ad-curve')), N=Math.max(40,AD.t), lg=x=>Math.log10(Math.max(x,1e-6));
+    const v=makeView2(w,h,0,N,lg(AD_EMIN)-0.15,Math.max(1.2,lg(adE(AD.start))+0.3),{l:44,r:14,t:30,b:24});
+    drawAxes2(ctx,v,w,h,'update t','E(w)',{logY:true});
+    clipPlot(ctx,v,w,h);
+    line(ctx,[[v.X(0),v.Y(lg(AD_EMIN))],[v.X(N),v.Y(lg(AD_EMIN))]],T.ink,1,[3,4]);
+    ['mb','sgd','gd'].forEach(k=>{ if (AD.show[k]) line(ctx,AD.M[k].E.map((e,i)=>[v.X(i),v.Y(Math.min(lg(e),v.y1+1))]),T[AD_COL[k]],k==='gd'?2.4:1.5); });
+    ctx.restore();
+    title(ctx,'Error per update (dotted: minimum)');
+  }
+  const r=AD.eta*AD_LMAX, st = r<1 ? pill('good','smooth descent') : r<2 ? pill('warn','zig-zags, still converges') : pill('bad','diverges');
+  const last=k=>{ const E=AD.M[k].E[AD.M[k].E.length-1]; return isFinite(E)&&E<1e8?fmtG(E):'diverged'; };
+  set('ad-stats', stats([
+    ['η', fmtG(AD.eta)+(AD.sched?` → ${fmtG(AD.eta/(1+AD.t/20))} now`:'')],
+    ['λmax of the Hessian', fmt(AD_LMAX,2)],
+    ['batch GD limit 2/λmax', fmt(2/AD_LMAX,3)],
+    ['batch GD at this η', st],
+    ['E: batch / SGD / mini-batch', `${last('gd')} / ${last('sgd')} / ${last('mb')}`],
+    ['examples per update', `${AD.N} / 1 / ${AD.b}`],
+    ['minimum E', fmt(AD_EMIN,4)],
+  ]));
+}
+bindRange('ad-eta', v=>fmtG(Math.pow(10,v)), v=>{ AD.eta=Math.pow(10,v); stop('ad'); adReset(); adFill(); drawAdaline(); });
+bindRange('ad-b', v=>v, v=>{ AD.b=v; stop('ad'); adReset(); adFill(); drawAdaline(); });
+['gd','sgd','mb'].forEach(k=>$('#ad-'+k).addEventListener('change',e=>{ AD.show[k]=e.target.checked; drawAdaline(); }));
+$('#ad-sched').addEventListener('change',e=>{ AD.sched=e.target.checked; stop('ad'); adReset(); drawAdaline(); });
+$('#ad-step').addEventListener('click',()=>{ stop('ad'); adStep(); drawAdaline(); });
+$('#ad-run').addEventListener('click',e=>run('ad',e.target,()=>{ adStep(); drawAdaline(); return AD.t<300; },60));
+$('#ad-reset').addEventListener('click',()=>{ stop('ad'); adReset(); drawAdaline(); });
+const adFill=()=>{ for (let i=0;i<40;i++) adStep(); };
+$('#cv-ad-surf').addEventListener('click',e=>{ const c=e.currentTarget, [px,py]=ptr(c,e), v=adView(); AD.start=[v.iX(px),v.iY(py)]; stop('ad'); adReset(); adFill(); drawAdaline(); });
+adReset(); adFill();
+
+/* =====================================================================
+   4.4 Activation functions
+   ===================================================================== */
+const ACTS = [
+  { k:'step', name:'step', col:'one', f:x=>x>=0?1:0, d:x=>0, dTxt:'0 (undefined at 0)' },
+  { k:'sign', name:'sign', col:'warn', f:x=>x>=0?1:-1, d:x=>0, dTxt:'0 (undefined at 0)' },
+  { k:'sig', name:'sigmoid', col:'acc', f:sigm, d:x=>sigm(x)*(1-sigm(x)) },
+  { k:'tanh', name:'tanh', col:'v1', f:Math.tanh, d:x=>1-Math.tanh(x)**2 },
+  { k:'relu', name:'ReLU', col:'v2', f:x=>Math.max(0,x), d:x=>x>0?1:0 },
+];
+const AC = { x:1, show:{step:true,sign:false,sig:true,tanh:true,relu:true}, unit:'sig', s:1, c:[0.4,-0.3], dir:[1.4,0.8] };
+$('#ac-show').innerHTML = ACTS.map(a=>`<label><input type="checkbox" data-act="${a.k}"${AC.show[a.k]?' checked':''}> <span style="color:var(--${a.col})">${a.name}</span></label>`).join('');
+$('#ac-legend').innerHTML = '<span><i class="sw"></i>function</span><span><i class="sw dash"></i>its derivative</span><span>drag to move the input</span>';
+const acView = () => { const c=$('#cv-ac-fn'); return makeView2(c.clientWidth,c.clientHeight,-5,5,-1.3,2.2,{l:36,r:14,t:30,b:24}); };
+const acUView = () => { const c=$('#cv-ac-unit'); return eqView(c.clientWidth,c.clientHeight,0,0,3,{l:36,r:14,t:30,b:24}); };
+function acUnitVal(x,y){
+  if (AC.unit==='rbf') return Math.exp(-((x-AC.c[0])**2+(y-AC.c[1])**2)/(2*AC.s*AC.s));
+  const d=AC.dir, n=Math.hypot(...d)||1; return sigm(((x-AC.c[0])*d[0]+(y-AC.c[1])*d[1])/n*3/AC.s);
+}
+function drawActiv(){
+  { const {ctx,w,h}=prep($('#cv-ac-fn')), v=acView();
+    drawAxes2(ctx,v,w,h,'net input','output');
+    clipPlot(ctx,v,w,h);
+    line(ctx,[[v.X(-5),v.Y(0)],[v.X(5),v.Y(0)]],T.rule,1.2);
+    const xs=[...Array(401)].map((_,i)=>-5+i/40);
+    ACTS.forEach(a=>{ if (!AC.show[a.k]) return; const c=T[a.col];
+      const seg=(fn)=>{ const pts=[]; xs.forEach((x,i)=>{ if (i && (a.k==='step'||a.k==='sign') && xs[i-1]<0 && x>=0) pts.push(null); pts.push([v.X(x),v.Y(fn(x))]); }); return pts; };
+      line(ctx,seg(a.f),c,2.4); line(ctx,seg(a.d),c,1.6,[5,4]); });
+    line(ctx,[[v.X(AC.x),v.pad.t],[v.X(AC.x),h-v.pad.b]],T.ink,1,[2,3]);
+    ACTS.forEach(a=>{ if (AC.show[a.k]) dotAt(ctx,v.X(AC.x),v.Y(a.f(AC.x)),T[a.col],5); });
+    ctx.restore();
+    title(ctx,`net input = ${fmt(AC.x)}`);
+  }
+  { const {ctx,w,h}=prep($('#cv-ac-unit')), v=acUView(), P=RGB.panel, A=RGB.acc;
+    heat(ctx,v,w,h,(x,y)=>mix(P,A,0.55*acUnitVal(x,y)),4);
+    drawAxes2(ctx,v,w,h,'x₁','x₂');
+    clipPlot(ctx,v,w,h);
+    if (AC.unit==='rbf'){ ctx.beginPath(); ctx.arc(v.X(AC.c[0]),v.Y(AC.c[1]),AC.s*v.sx,0,TAU); ctx.setLineDash([5,4]); ctx.strokeStyle=T.ink; ctx.lineWidth=1.4; ctx.stroke(); ctx.setLineDash([]); }
+    else { const d=AC.dir, R=20; line(ctx,[[v.X(AC.c[0]-d[1]*R),v.Y(AC.c[1]+d[0]*R)],[v.X(AC.c[0]+d[1]*R),v.Y(AC.c[1]-d[0]*R)]],T.ink,1.4,[5,4]);
+      arrow(ctx,v.X(AC.c[0]),v.Y(AC.c[1]),v.X(AC.c[0]+d[0]),v.Y(AC.c[1]+d[1]),T.ink,2,9); ringAt(ctx,v.X(AC.c[0]+d[0]),v.Y(AC.c[1]+d[1]),T.ink,8,1.4); }
+    ctx.restore();
+    dotAt(ctx,v.X(AC.c[0]),v.Y(AC.c[1]),T.ink,5);
+    title(ctx, AC.unit==='rbf' ? `RBF unit: centre w_j, width σ_j = ${fmt(AC.s)}` : 'Sigmoid unit: output 0.5 on the dashed line');
+  }
+  set('ac-stats', stats(ACTS.filter(a=>AC.show[a.k]).map(a=>[`<span style="color:var(--${a.col})">${a.name}</span>`, `g = ${fmt(a.f(AC.x),3)} · g′ = ${a.dTxt && Math.abs(AC.x)<1e-9 ? a.dTxt : fmt(a.d(AC.x),3)}`])));
+  set('ac-hint', AC.unit==='rbf' ? 'Gaussian RBF: a localized response, significant only when the input falls near the centre. Drag the centre.' : 'Sigmoid: non-zero over an infinitely large region of the input. Drag the centre dot, or the ring to turn it.');
+}
+$('#ac-show').addEventListener('change',e=>{ const k=e.target.dataset.act; if (k){ AC.show[k]=e.target.checked; drawActiv(); } });
+bindRange('ac-x', v=>fmt(v,2), v=>{ AC.x=v; drawActiv(); });
+bindRange('ac-s', v=>fmt(v,2), v=>{ AC.s=v; drawActiv(); });
+bindSeg('ac-unit', v=>{ AC.unit=v; drawActiv(); });
+draggable($('#cv-ac-fn'),(px)=>{ const f=x=>{ AC.x=clamp(Math.round(acView().iX(x)*20)/20,-5,5); $('#ac-x').value=AC.x; $('#ac-x-o').textContent=fmt(AC.x,2); drawActiv(); }; f(px); return f; });
+draggable($('#cv-ac-unit'),(px,py)=>{
+  const v=acUView(), tip=[v.X(AC.c[0]+AC.dir[0]),v.Y(AC.c[1]+AC.dir[1])];
+  if (AC.unit==='sig' && Math.hypot(px-tip[0],py-tip[1])<14) return (x,y)=>{ AC.dir=[v.iX(x)-AC.c[0],v.iY(y)-AC.c[1]]; drawActiv(); };
+  const f=(x,y)=>{ AC.c=[clamp(v.iX(x),-3,3),clamp(v.iY(y),-3,3)]; drawActiv(); }; f(px,py); return f;
+});
+
+/* =====================================================================
+   4.5 Backprop on a computation graph
+   ===================================================================== */
+const BP_EX = {
+  simple: { cols:3, rows:2, inputs:{x:-2,y:5,z:-4}, nodes:[
+    {n:'x',op:'in',p:[0,0]},{n:'y',op:'in',p:[0,1]},{n:'z',op:'in',p:[0,2]},
+    {n:'q',op:'add',in:['x','y'],p:[1,0.5]},{n:'f',op:'mul',in:['q','z'],p:[2,1.25]} ]},
+  sigmoid: { cols:8, rows:4, inputs:{w0:2,x0:-1,w1:-3,x1:-2,w2:-3}, nodes:[
+    {n:'w0',op:'in',p:[0,0]},{n:'x0',op:'in',p:[0,1]},{n:'w1',op:'in',p:[0,2]},{n:'x1',op:'in',p:[0,3]},{n:'w2',op:'in',p:[0,4]},
+    {n:'a',op:'mul',in:['w0','x0'],p:[1,0.5]},{n:'b',op:'mul',in:['w1','x1'],p:[1,2.5]},{n:'c',op:'add',in:['a','b'],p:[2,1.5]},{n:'d',op:'add',in:['c','w2'],p:[3,2.5]},
+    {n:'e',op:'mulc',k:-1,in:['d'],p:[4,2.5]},{n:'g',op:'exp',in:['e'],p:[5,2.5]},{n:'h',op:'addc',k:1,in:['g'],p:[6,2.5]},{n:'f',op:'inv',in:['h'],p:[7,2.5]} ]},
+  sigwrap: { cols:5, rows:4, inputs:{w0:2,x0:-1,w1:-3,x1:-2,w2:-3}, nodes:[
+    {n:'w0',op:'in',p:[0,0]},{n:'x0',op:'in',p:[0,1]},{n:'w1',op:'in',p:[0,2]},{n:'x1',op:'in',p:[0,3]},{n:'w2',op:'in',p:[0,4]},
+    {n:'a',op:'mul',in:['w0','x0'],p:[1,0.5]},{n:'b',op:'mul',in:['w1','x1'],p:[1,2.5]},{n:'c',op:'add',in:['a','b'],p:[2,1.5]},{n:'d',op:'add',in:['c','w2'],p:[3,2.5]},
+    {n:'f',op:'sig',in:['d'],p:[4,2.5]} ]},
+  gates: { cols:4, rows:3, inputs:{x:3,y:-4,z:2,w:-1}, nodes:[
+    {n:'x',op:'in',p:[0,0]},{n:'y',op:'in',p:[0,1]},{n:'z',op:'in',p:[0,2]},{n:'w',op:'in',p:[0,3]},
+    {n:'m',op:'mul',in:['x','y'],p:[1,0.5]},{n:'r',op:'max',in:['z','w'],p:[1,2.5]},{n:'s',op:'add',in:['m','r'],p:[2,1.5]},{n:'f',op:'mulc',k:2,in:['s'],p:[3,1.5]} ]},
+  branch: { cols:3, rows:2, inputs:{x:3,y:-2}, nodes:[
+    {n:'x',op:'in',p:[0,0.3]},{n:'y',op:'in',p:[0,2]},
+    {n:'q',op:'mul',in:['x','y'],p:[1,1.5]},{n:'f',op:'add',in:['q','x'],p:[2,0.8]} ]},
+};
+const OPS = {
+  add:{ s:'+', f:a=>a.reduce((x,y)=>x+y,0), L:a=>a.map(()=>1), t:(n,a)=>a.join(' + ') },
+  mul:{ s:'×', f:a=>a[0]*a[1], L:a=>[a[1],a[0]], t:(n,a)=>a.join(' × ') },
+  max:{ s:'max', f:a=>Math.max(a[0],a[1]), L:a=>a[0]>=a[1]?[1,0]:[0,1], t:(n,a)=>`max(${a.join(', ')})` },
+  mulc:{ s:n=>`×${n.k<0?'−'+(-n.k):n.k}`, f:(a,n)=>n.k*a[0], L:(a,n)=>[n.k], t:(n,a)=>`${fmt(n.k,0)} × ${a[0]}` },
+  addc:{ s:n=>`+${n.k}`, f:(a,n)=>a[0]+n.k, L:()=>[1], t:(n,a)=>`${a[0]} + ${n.k}` },
+  exp:{ s:'exp', f:a=>Math.exp(a[0]), L:a=>[Math.exp(a[0])], t:(n,a)=>`exp(${a[0]})` },
+  inv:{ s:'1/x', f:a=>1/a[0], L:a=>[-1/(a[0]*a[0])], t:(n,a)=>`1 / ${a[0]}` },
+  sig:{ s:'σ', f:a=>sigm(a[0]), L:a=>{ const s=sigm(a[0]); return [s*(1-s)]; }, t:(n,a)=>`σ(${a[0]})` },
+};
+const BP = { ex:'simple', wrap:false, step:0, vals:{} };
+function bpGraph(){ return BP_EX[BP.ex==='sigmoid'&&BP.wrap?'sigwrap':BP.ex]; }
+function bpInputsUI(){
+  const G=bpGraph();
+  BP.vals = Object.assign({}, G.inputs, BP.vals && BP.ex===BP._ex ? BP.vals : {});
+  BP._ex=BP.ex;
+  $('#bp-inputs').innerHTML = Object.keys(G.inputs).map(k=>`<label class="mono" style="font-size:14px">${k} <input class="num-in" type="number" step="0.5" id="bp-in-${k}" value="${BP.vals[k]}"></label>`).join('');
+  $('#bp-sigwrap').hidden = BP.ex!=='sigmoid';
+}
+// replay the first s steps: forward over op nodes, seed, then backward over op nodes in reverse
+function bpState(){
+  const G=bpGraph(), byN={}; G.nodes.forEach(n=>byN[n.n]=n);
+  const val={}; G.nodes.forEach(n=>{ val[n.n] = n.op==='in' ? +BP.vals[n.n] : OPS[n.op].f(n.in.map(i=>val[i]), n); });
+  const ops=G.nodes.filter(n=>n.op!=='in'), seq=[...ops.map(n=>({t:'fwd',n})), {t:'seed'}, ...ops.slice().reverse().map(n=>({t:'bwd',n}))];
+  const shown=new Set(G.nodes.filter(n=>n.op==='in').map(n=>n.n)), grad={}, eg={}; let note='', cur=null;
+  const s=Math.min(BP.step, seq.length);
+  for (let i=0;i<s;i++){
+    const e=seq[i];
+    if (e.t==='fwd'){ shown.add(e.n.n); cur=e.n.n;
+      note=`forward: ${e.n.n} = ${OPS[e.n.op].t(e.n, e.n.in)} = ${OPS[e.n.op].t(e.n, e.n.in.map(k=>fmt(val[k])))} = ${fmt(val[e.n.n])}`; }
+    else if (e.t==='seed'){ grad.f=1; cur='f'; note='backward starts at the output: ∂f/∂f = 1'; }
+    else { const n=e.n, up=grad[n.n], Lc=OPS[n.op].L(n.in.map(k=>val[k]), n); cur=n.n;
+      note = n.in.map((k,j)=>{ const had=k in grad, c=Lc[j]*up; grad[k]=(grad[k]||0)+c; eg[k+'>'+n.n]=c;
+        return `∂f/∂${k} ${had?'+=':'='} [local ${fmt(Lc[j])}] × [upstream ${fmt(up)}] = ${fmt(c)}${had?` → total ${fmt(grad[k])}`:''}`; }).join('<br>'); }
+  }
+  if (s===0) note='Press Step to run the forward pass one node at a time.';
+  if (s===seq.length) note+='<br><span style="font-family:var(--f-body);color:var(--muted)">Done: every input now holds ∂f/∂input.</span>';
+  return { G, byN, val, shown, grad, eg, note, cur, total:seq.length, s };
+}
+function drawBackprop(){
+  const S=bpState(), G=S.G, {ctx,w,h}=prep($('#cv-bp'));
+  const small=w<620, padL=small?44:70, padR=small?50:80, top=48, bot=small?30:36;
+  const P=p=>[padL+p[0]*(w-padL-padR)/Math.max(1,G.cols-1), top+p[1]*(h-top-bot)/G.rows];
+  const R=small?14:19, fw=small?F.small:F.num;
+  const edge=(a,b,src,dst)=>{
+    const A=P(a.p), B=P(b.p), ax=A[0]+(a.op==='in'?(small?14:22):R), bx=B[0]-R-2;
+    ctx.strokeStyle=T.rule; ctx.lineWidth=1.6; ctx.beginPath(); ctx.moveTo(ax,A[1]); ctx.lineTo(bx,B[1]); ctx.stroke();
+    const mx=ax+(bx-ax)*0.5, my=A[1]+(B[1]-A[1])*0.5;
+    if (S.shown.has(src)) label(ctx,fmt(S.val[src]),mx,my-9,T.v1,fw,'center');
+    const k=src+'>'+dst; if (k in S.eg) label(ctx,fmt(S.eg[k]),mx,my+10,T.v2,fw,'center');
+  };
+  G.nodes.forEach(n=>{ if (n.in) n.in.forEach(k=>edge(S.byN[k],n,k,n.n)); });
+  const out=S.byN.f, O=P(out.p);
+  ctx.strokeStyle=T.rule; ctx.lineWidth=1.6; ctx.beginPath(); ctx.moveTo(O[0]+R,O[1]); ctx.lineTo(w-10,O[1]); ctx.stroke();
+  if (S.shown.has('f')) label(ctx,fmt(S.val.f),O[0]+R+(w-10-O[0]-R)/2,O[1]-9,T.v1,fw,'center');
+  if ('f' in S.grad) label(ctx,fmt(S.grad.f),O[0]+R+(w-10-O[0]-R)/2,O[1]+10,T.v2,fw,'center');
+  G.nodes.forEach(n=>{
+    const [X,Y]=P(n.p), isCur=S.cur===n.n;
+    if (n.op==='in'){
+      label(ctx,n.n,X,Y,isCur?T.acc:T.ink,small?F.lab:F.big,'center');
+    } else {
+      ctx.beginPath(); ctx.arc(X,Y,R,0,TAU); ctx.fillStyle=isCur?T['acc-soft']:T.panel; ctx.fill(); ctx.lineWidth=isCur?2.6:1.6; ctx.strokeStyle=isCur?T.acc:T.muted; ctx.stroke();
+      const sym=typeof OPS[n.op].s==='function'?OPS[n.op].s(n):OPS[n.op].s;
+      label(ctx,sym,X,Y,T.ink,sym.length>2?(small?F.small:F.num):(small?F.lab:F.big),'center');
+      label(ctx,n.n,X,Y-R-8,T.muted,F.small,'center');
+    }
+  });
+  // input gradients, written under each input name
+  G.nodes.filter(n=>n.op==='in').forEach(n=>{ if (n.n in S.grad){ const [X,Y]=P(n.p); label(ctx,`∂=${fmt(S.grad[n.n])}`,X,Y+(small?13:16),T.v2,F.small,'center'); } });
+  title(ctx,`step ${S.s} of ${S.total}  ·  ${S.s<=S.total/2-0.5?'forward pass':'backward pass'}`);
+  set('bp-now', S.note);
+  $('#bp-prev').disabled=S.s===0; $('#bp-next').disabled=S.s===S.total;
+}
+bindSeg('bp-ex', v=>{ stop('bp'); BP.ex=v; BP.step=0; bpInputsUI(); drawBackprop(); });
+$('#bp-sig').addEventListener('change',e=>{ BP.wrap=e.target.checked; BP.step=0; drawBackprop(); });
+$('#bp-inputs').addEventListener('input',e=>{ const k=e.target.id.replace('bp-in-',''); if (e.target.value!=='' && isFinite(+e.target.value)){ BP.vals[k]=+e.target.value; drawBackprop(); } });
+$('#bp-next').addEventListener('click',()=>{ stop('bp'); BP.step++; drawBackprop(); });
+$('#bp-prev').addEventListener('click',()=>{ stop('bp'); BP.step=Math.max(0,BP.step-1); drawBackprop(); });
+$('#bp-reset').addEventListener('click',()=>{ stop('bp'); BP.step=0; drawBackprop(); });
+$('#bp-play').addEventListener('click',e=>{ if (BP.step>=bpState().total) BP.step=0; run('bp',e.target,()=>{ BP.step++; drawBackprop(); return BP.step<bpState().total; },650,['Play all','Pause']); });
+bpInputsUI();
+
+/* =====================================================================
+   4.6 Momentum and local minima
+   ===================================================================== */
+const WELLS = [[1.5,1.0,0.75,1.7],[-1.6,-0.9,0.8,1.15],[-0.9,1.9,0.55,0.95],[1.7,-1.9,0.6,0.8],[-2.3,0.9,0.45,0.6]];
+function mmE(a,b){ let e=0.06*(a*a+b*b); WELLS.forEach(([cx,cy,s,A])=>{ e-=A*Math.exp(-((a-cx)**2+(b-cy)**2)/(2*s*s)); }); return e; }
+function mmG(a,b){ let ga=0.12*a, gb=0.12*b; WELLS.forEach(([cx,cy,s,A])=>{ const g=A*Math.exp(-((a-cx)**2+(b-cy)**2)/(2*s*s))/(s*s); ga+=g*(a-cx); gb+=g*(b-cy); }); return [ga,gb]; }
+const MM_GLOBAL = (()=>{ let p=[1.5,1.0]; for (let i=0;i<3000;i++){ const g=mmG(...p); p=[p[0]-0.05*g[0],p[1]-0.05*g[1]]; } return p; })(), MM_EMIN=mmE(...MM_GLOBAL);
+const MM = { eta:0.08, a:0.9, start:[-2.4,2.8], runs:null, restarts:null, seed:9, it:0 };
+function mmNew(start){ return { p:start.slice(), v:[0,0], path:[start.slice()], E:[mmE(...start)] }; }
+function mmReset(){ MM.runs=[mmNew(MM.start), mmNew(MM.start)]; MM.it=0; }
+function mmStepOne(r, alpha){ const g=mmG(...r.p); r.v=[-MM.eta*g[0]+alpha*r.v[0], -MM.eta*g[1]+alpha*r.v[1]]; r.p=[clamp(r.p[0]+r.v[0],-4,4),clamp(r.p[1]+r.v[1],-4,4)]; r.path.push(r.p.slice()); r.E.push(mmE(...r.p)); }
+function mmStep(){ mmStepOne(MM.runs[0],0); mmStepOne(MM.runs[1],MM.a); MM.it++; }
+const atGlobal = p => Math.hypot(p[0]-MM_GLOBAL[0],p[1]-MM_GLOBAL[1])<0.35;
+const mmView = () => { const c=$('#cv-mm-surf'); return eqView(c.clientWidth,c.clientHeight,0,0,3.4,{l:36,r:14,t:30,b:24}); };
+function drawMinima(){
+  { const {ctx,w,h}=prep($('#cv-mm-surf')), v=mmView();
+    contourMap(ctx,v,w,h,(a,b)=>mmE(a,b)-MM_EMIN+0.02,'one');
+    drawAxes2(ctx,v,w,h,'w₁','w₂');
+    clipPlot(ctx,v,w,h);
+    if (MM.restarts) MM.restarts.forEach(([pl,mo])=>{ line(ctx,pl.path.map(p=>[v.X(p[0]),v.Y(p[1])]),rgba(RGB.one,.45),1); line(ctx,mo.path.map(p=>[v.X(p[0]),v.Y(p[1])]),rgba(RGB.acc,.45),1); });
+    else { line(ctx,MM.runs[0].path.map(p=>[v.X(p[0]),v.Y(p[1])]),T.one,2.2); line(ctx,MM.runs[1].path.map(p=>[v.X(p[0]),v.Y(p[1])]),T.acc,2.4);
+      MM.runs.forEach((r,i)=>dotAt(ctx,v.X(r.p[0]),v.Y(r.p[1]),i?T.acc:T.one,5.5)); }
+    star(ctx,v.X(MM_GLOBAL[0]),v.Y(MM_GLOBAL[1]),T.ink,9);
+    if (!MM.restarts) dotAt(ctx,v.X(MM.start[0]),v.Y(MM.start[1]),T.ink,4);
+    else MM.restarts.forEach(([pl,mo])=>{ dotAt(ctx,v.X(pl.path[0][0]),v.Y(pl.path[0][1]),T.ink,3); });
+    ctx.restore();
+    title(ctx, MM.restarts ? '20 random starts: grey plain GD, teal momentum' : `iteration ${MM.it} · click to choose a start`);
+  }
+  { const {ctx,w,h}=prep($('#cv-mm-curve'));
+    const src=MM.restarts?[]:MM.runs, N=Math.max(60,MM.it); let hi=0.3; src.forEach(r=>r.E.forEach(e=>hi=Math.max(hi,e)));
+    const v=makeView2(w,h,0,N,MM_EMIN-0.15,hi+0.15,{l:44,r:14,t:30,b:24});
+    drawAxes2(ctx,v,w,h,'iteration','E(w)');
+    clipPlot(ctx,v,w,h);
+    line(ctx,[[v.X(0),v.Y(MM_EMIN)],[v.X(N),v.Y(MM_EMIN)]],T.one,1.2,[5,4]);
+    src.forEach((r,i)=>line(ctx,r.E.map((e,k)=>[v.X(k),v.Y(e)]),i?T.acc:T.one,2.2));
+    ctx.restore();
+    title(ctx, MM.restarts ? 'Run a single start to see its curve' : 'E(w) along each path');
+  }
+  if (MM.restarts){
+    const pl=MM.restarts.filter(r=>atGlobal(r[0].p)).length, mo=MM.restarts.filter(r=>atGlobal(r[1].p)).length;
+    set('mm-stats', stats([['plain GD reached ★', `${pl} of 20`],['momentum reached ★', `${mo} of 20`],['α, η', `${fmt(MM.a,2)}, ${fmt(MM.eta,2)}`]]));
+  } else {
+    const [pl,mo]=MM.runs, tag=r=>atGlobal(r.p)?pill('good','global minimum'):(MM.it>0&&Math.hypot(...mmG(...r.p))<2e-3?pill('warn','stuck in a local minimum'):pill('info','moving'));
+    set('mm-stats', stats([
+      ['plain GD', `E = ${fmt(pl.E[pl.E.length-1],3)} ${tag(pl)}`],
+      ['momentum', `E = ${fmt(mo.E[mo.E.length-1],3)} ${tag(mo)}`],
+      ['global minimum E', fmt(MM_EMIN,3)],
+      ['iterations', MM.it],
+    ]));
+  }
+}
+bindRange('mm-eta', v=>fmt(v,2), v=>{ MM.eta=v; stop('mm'); MM.restarts=null; mmReset(); drawMinima(); });
+bindRange('mm-a', v=>fmt(v,2), v=>{ MM.a=v; stop('mm'); MM.restarts=null; mmReset(); drawMinima(); });
+$('#mm-run').addEventListener('click',e=>{ if (MM.restarts || MM.it>=300){ MM.restarts=null; mmReset(); } run('mm',e.target,()=>{ for (let i=0;i<2;i++) mmStep(); drawMinima(); return MM.it<300; },16); });
+$('#mm-restarts').addEventListener('click',()=>{ stop('mm'); const r=rng(++MM.seed);
+  MM.restarts=[...Array(20)].map(()=>{ const s=[-3.3+6.6*r(),-3.3+6.6*r()], a=mmNew(s), b=mmNew(s); for (let i=0;i<300;i++){ mmStepOne(a,0); mmStepOne(b,MM.a); } return [a,b]; });
+  drawMinima(); });
+$('#cv-mm-surf').addEventListener('click',e=>{ const c=e.currentTarget, [px,py]=ptr(c,e), v=mmView(); MM.start=[v.iX(px),v.iY(py)]; MM.restarts=null; mmReset(); drawMinima();
+  run('mm',$('#mm-run'),()=>{ for (let i=0;i<2;i++) mmStep(); drawMinima(); return MM.it<300; },16); });
+mmReset(); for (let i=0;i<300;i++) mmStep();
+
+/* =====================================================================
+   4.7 MLP playground
+   ===================================================================== */
+const MLP = { data:'xor', act:'tanh', layers:1, H:4, eta:0.5, a:0.9, noise:0.1, lines:true, seed:1, net:null, set:null, epoch:0, hist:[] };
+function mlpData(){
+  const r=rng(MLP.seed*17+MLP.data.length), n=200, pts=[], nz=()=>MLP.noise*gauss(r);
+  for (let i=0;i<n;i++){
+    let x, y, t;
+    if (MLP.data==='xor'){ do { x=2*r()-1; y=2*r()-1; } while (Math.abs(x)<0.1||Math.abs(y)<0.1); t=x*y>0?1:0; }
+    else if (MLP.data==='circle'){ t=i%2; const a=TAU*r(), rad=t?0.5*Math.sqrt(r()):0.75+0.3*r(); x=rad*Math.cos(a); y=rad*Math.sin(a); }
+    else if (MLP.data==='moons'){ t=i%2; const a=Math.PI*r(); x=t?Math.cos(a)*0.8-0.35:0.45-Math.cos(a)*0.8; y=t?Math.sin(a)*0.8-0.15:0.2-Math.sin(a)*0.8; }
+    else if (MLP.data==='spiral'){ t=i%2; const s=r(), a=s*3.2*Math.PI+(t?Math.PI:0), rad=0.12+s*0.95; x=rad*Math.cos(a); y=rad*Math.sin(a); }
+    else { x=2*r()-1; y=2*r()-1; t=(x+0.6*y-0.1)>0?1:0; }
+    pts.push([x+nz(), y+nz(), t]);
+  }
+  shuffle(pts, r);
+  MLP.set={ train:pts.slice(0,140), test:pts.slice(140) };
+}
+const ACTF = {
+  sigmoid:{ f:sigm, d:(a)=>a*(1-a) },
+  tanh:{ f:Math.tanh, d:(a)=>1-a*a },
+  relu:{ f:z=>z>0?z:0, d:(a)=>a>0?1:0 },
+};
+function mlpInit(){
+  const r=rng(MLP.seed*101+7), sizes=[2, ...Array(MLP.layers).fill(MLP.H), 1];
+  MLP.net={ sizes, W:[], V:[] };
+  for (let l=1;l<sizes.length;l++){
+    const s=1/Math.sqrt(sizes[l-1]);
+    MLP.net.W.push([...Array(sizes[l])].map(()=>[...Array(sizes[l-1]+1)].map((_,j)=>j<sizes[l-1]?s*1.6*(2*r()-1):0.1*(2*r()-1))));
+    MLP.net.V.push([...Array(sizes[l])].map(()=>Array(sizes[l-1]+1).fill(0)));
+  }
+  MLP.epoch=0; MLP.hist=[];
+}
+function mlpFwd(x){
+  const A=[x], net=MLP.net, L=net.W.length;
+  for (let l=0;l<L;l++){ const prev=A[l], out=net.W[l].map(row=>{ let z=row[prev.length]; for (let j=0;j<prev.length;j++) z+=row[j]*prev[j]; return l===L-1?sigm(z):ACTF[MLP.act].f(z); }); A.push(out); }
+  return A;
+}
+const mlpLoss = S => S.reduce((s,p)=>s+0.5*(p[2]-mlpFwd([p[0],p[1]]).at(-1)[0])**2,0)/S.length;
+const mlpAcc = S => S.filter(p=>(mlpFwd([p[0],p[1]]).at(-1)[0]>=0.5?1:0)===p[2]).length/S.length;
+function mlpEpoch(){
+  const net=MLP.net, L=net.W.length, G=net.W.map(Wl=>Wl.map(r=>r.map(()=>0))), S=MLP.set.train;
+  S.forEach(p=>{
+    const A=mlpFwd([p[0],p[1]]), o=A[L][0];
+    let D=[(o-p[2])*o*(1-o)];
+    for (let l=L-1;l>=0;l--){
+      const prev=A[l];
+      D.forEach((d,i)=>{ const g=G[l][i]; for (let j=0;j<prev.length;j++) g[j]+=d*prev[j]; g[prev.length]+=d; });
+      if (l>0) D=prev.map((a,j)=>ACTF[MLP.act].d(a)*D.reduce((s,d,i)=>s+net.W[l][i][j]*d,0));
+    }
+  });
+  for (let l=0;l<L;l++) net.W[l].forEach((row,i)=>row.forEach((_,j)=>{ const v=-MLP.eta*G[l][i][j]/S.length+MLP.a*net.V[l][i][j]; net.V[l][i][j]=v; row[j]+=v; }));
+  MLP.epoch++;
+  if (MLP.epoch%2===0 || MLP.epoch<20) MLP.hist.push([MLP.epoch, mlpLoss(S), mlpLoss(MLP.set.test)]);
+}
+const MLP_SPAN=1.45;
+function unitColor(a, lo, hi){ const t=clamp((a-lo)/(hi-lo||1),0,1)*2-1; return t>=0?mix(RGB.panel,RGB.v1,0.85*t):mix(RGB.panel,RGB.v2,-0.85*t); }
+function drawMLP(){
+  if (!MLP.set) mlpData(); if (!MLP.net) mlpInit();
+  const net=MLP.net, L=net.W.length;
+  { const {ctx,w,h}=prep($('#cv-mlp-plane')), v=eqView(w,h,0,0,MLP_SPAN,{l:36,r:14,t:30,b:24});
+    heat(ctx,v,w,h,(x,y)=>{ const o=mlpFwd([x,y])[L][0]; return mix(unitColor(o,0,1),RGB.panel,0.35); },5);
+    drawAxes2(ctx,v,w,h,'x₁','x₂');
+    clipPlot(ctx,v,w,h);
+    if (MLP.lines) net.W[0].forEach(row=>{ const s=boundarySeg(v,[row[2],row[0],row[1]]); if (s) line(ctx,s.map(p=>[v.X(p[0]),v.Y(p[1])]),rgba(RGB.acc,.7),1.3,[5,4]); });
+    MLP.set.train.forEach(p=>dotAt(ctx,v.X(p[0]),v.Y(p[1]),p[2]?T.v1:T.v2,3.6));
+    MLP.set.test.forEach(p=>dotAt(ctx,v.X(p[0]),v.Y(p[1]),p[2]?T.v1:T.v2,3.6,true));
+    ctx.restore();
+    title(ctx,`epoch ${MLP.epoch}`);
+  }
+  { const {ctx,w,h}=prep($('#cv-mlp-net')), sizes=net.sizes, nc=sizes.length, G=18;
+    const colX=i=>36+i*(w-72)/(nc-1), maxN=Math.max(...sizes), box=Math.min(34,(h-50)/maxN-6);
+    const rowY=(l,i)=>30+(h-40)/2+(i-(sizes[l]-1)/2)*(box+6)+box/2-box/2;
+    // activations over a grid for the node thumbnails
+    const grid=[]; for (let j=0;j<G;j++) for (let i=0;i<G;i++) grid.push(mlpFwd([-MLP_SPAN+2*MLP_SPAN*(i+.5)/G, MLP_SPAN-2*MLP_SPAN*(j+.5)/G]));
+    let wmax=0; net.W.forEach(Wl=>Wl.forEach(r=>r.slice(0,-1).forEach(x=>wmax=Math.max(wmax,Math.abs(x)))));
+    net.W.forEach((Wl,l)=>Wl.forEach((row,i)=>row.slice(0,-1).forEach((wt,j)=>{
+      ctx.strokeStyle=rgba(wt>=0?RGB.v1:RGB.v2, 0.25+0.6*Math.abs(wt)/(wmax||1)); ctx.lineWidth=0.5+4*Math.abs(wt)/(wmax||1);
+      ctx.beginPath(); ctx.moveTo(colX(l)+box/2,rowY(l,j)); ctx.lineTo(colX(l+1)-box/2,rowY(l+1,i)); ctx.stroke(); })));
+    sizes.forEach((n,l)=>{ for (let i=0;i<n;i++){
+      const lo = l===0 ? -MLP_SPAN : (l<nc-1 && MLP.act==='tanh') ? -1 : 0;
+      let hi = l===0 ? MLP_SPAN : 1; if (l>0 && l<nc-1 && MLP.act==='relu') hi=Math.max(1e-6,...grid.map(A=>A[l][i]));
+      OFF.width=G; OFF.height=G; const oc=OFF.getContext('2d'), img=oc.createImageData(G,G);
+      grid.forEach((A,k)=>{ const c=unitColor(A[l][i],lo,hi); img.data.set([c[0],c[1],c[2],255],4*k); });
+      oc.putImageData(img,0,0);
+      const X=colX(l)-box/2, Y=rowY(l,i)-box/2;
+      ctx.imageSmoothingEnabled=true; ctx.drawImage(OFF,X,Y,box,box);
+      ctx.strokeStyle=T.rule; ctx.lineWidth=1; ctx.strokeRect(X+.5,Y+.5,box-1,box-1);
+    }});
+    label(ctx,'input',colX(0),h-10,T.muted,F.small,'center'); label(ctx,'output',colX(nc-1),h-10,T.muted,F.small,'center');
+    for (let l=1;l<nc-1;l++) label(ctx,`hidden ${MLP.layers>1?l:''}`.trim(),colX(l),h-10,T.muted,F.small,'center');
+    title(ctx,`${sizes.join(' → ')} · ${net.W.reduce((s,Wl)=>s+Wl.length*Wl[0].length,0)} weights`);
+  }
+  { const {ctx,w,h}=prep($('#cv-mlp-loss')), H=MLP.hist, lg=x=>Math.log10(Math.max(x,1e-5));
+    const N=Math.max(50,MLP.epoch); let lo=-2, hi=-0.4; H.forEach(r=>{ lo=Math.min(lo,lg(r[1])-0.2,lg(r[2])-0.2); hi=Math.max(hi,lg(r[1])+0.1,lg(r[2])+0.1); });
+    const v=makeView2(w,h,0,N,Math.floor(lo),Math.ceil(hi*2)/2,{l:44,r:14,t:30,b:24});
+    drawAxes2(ctx,v,w,h,'epoch','loss',{logY:true});
+    clipPlot(ctx,v,w,h);
+    line(ctx,H.map(r=>[v.X(r[0]),v.Y(lg(r[1]))]),T.v1,2.2); line(ctx,H.map(r=>[v.X(r[0]),v.Y(lg(r[2]))]),T.v2,2);
+    ctx.restore();
+    title(ctx,'½(t − o)² averaged over examples');
+  }
+  const tr=mlpAcc(MLP.set.train), te=mlpAcc(MLP.set.test);
+  set('mlp-stats', stats([
+    ['epoch', MLP.epoch],
+    ['training loss', fmtG(mlpLoss(MLP.set.train))],
+    ['test loss', fmtG(mlpLoss(MLP.set.test))],
+    ['training accuracy', `${fmt(100*tr,1)}%`],
+    ['test accuracy', `${fmt(100*te,1)}% ${te>=0.95?pill('good','solved'):te>=0.8?pill('warn','getting there'):pill('info','learning')}`],
+  ]));
+}
+const mlpRestart=()=>{ stop('mlp'); mlpInit(); drawMLP(); };
+bindSeg('mlp-data', v=>{ MLP.data=v; mlpData(); mlpRestart(); });
+bindSeg('mlp-act', v=>{ MLP.act=v; mlpRestart(); });
+bindSeg('mlp-layers', v=>{ MLP.layers=+v; mlpRestart(); });
+bindRange('mlp-h', v=>v, v=>{ MLP.H=v; mlpRestart(); });
+bindRange('mlp-eta', v=>fmt(v,2), v=>{ MLP.eta=v; });
+bindRange('mlp-a', v=>fmt(v,2), v=>{ MLP.a=v; });
+bindRange('mlp-noise', v=>fmt(v,2), v=>{ MLP.noise=v; mlpData(); mlpRestart(); });
+$('#mlp-lines').addEventListener('change',e=>{ MLP.lines=e.target.checked; drawMLP(); });
+$('#mlp-step').addEventListener('click',()=>{ stop('mlp'); mlpEpoch(); drawMLP(); });
+$('#mlp-reset').addEventListener('click',()=>{ MLP.seed++; mlpRestart(); });
+$('#mlp-run').addEventListener('click',e=>run('mlp',e.target,()=>{ for (let i=0;i<6;i++) mlpEpoch(); drawMLP(); return MLP.epoch<4000; },0,['Train','Pause']));
+
+/* =====================================================================
+   4.8 Universal approximation
+   ===================================================================== */
+const UA_F = {
+  sin: x=>0.65*Math.sin(2.6*Math.PI*x)+0.25*Math.sin(7*x),
+  step: x=>x>0.1?0.8:-0.5,
+  abs: x=>1.4*Math.abs(x)-0.6,
+  bump: x=>0.95*Math.exp(-((x+0.4)**2)/0.02)-0.6*Math.exp(-((x-0.45)**2)/0.05),
+  saw: x=>{ const u=(x+1)*1.75; return 1.2*(u-Math.floor(u))-0.6; },
+};
+const UA = { f:'sin', act:'sig', H:6, k:2, parts:true, cache:null };
+const UA_X = [...Array(401)].map((_,i)=>-1+i/200);
+function uaUnits(H){
+  if (UA.act==='relu') return [...Array(H)].map((_,j)=>{ const c=-1+j*2/H; return x=>Math.max(0,x-c); });
+  return [...Array(H)].map((_,j)=>{ const c=-1+(j+.5)*2/H; return x=>sigm(UA.k*H*(x-c)); });
+}
+function uaFit(H){
+  const U=uaUnits(H), f=UA_F[UA.f], Phi=UA_X.map(x=>[1,...U.map(u=>u(x))]), c=lstsq(Phi,UA_X.map(f),1e-9);
+  const pred=Phi.map(r=>dot(r,c)), err=Math.max(...pred.map((p,i)=>Math.abs(p-f(UA_X[i]))));
+  return { U, c, pred, err };
+}
+function drawApprox(){
+  if (!UA.cache) UA.cache=[...Array(40)].map((_,i)=>uaFit(i+1).err);
+  const R=uaFit(UA.H), f=UA_F[UA.f];
+  { const {ctx,w,h}=prep($('#cv-ua-fit')), v=makeView2(w,h,-1,1,-1.4,1.4,{l:36,r:14,t:30,b:24});
+    drawAxes2(ctx,v,w,h,'x','');
+    clipPlot(ctx,v,w,h);
+    if (UA.parts) R.U.forEach((u,j)=>line(ctx,UA_X.filter((_,i)=>i%2===0).map(x=>[v.X(x),v.Y(R.c[j+1]*u(x))]),rgba(RGB.v1,.45),1.2));
+    line(ctx,UA_X.map(x=>[v.X(x),v.Y(f(x))]),T.one,2,[6,4]);
+    line(ctx,UA_X.map((x,i)=>[v.X(x),v.Y(R.pred[i])]),T.acc,2.6);
+    ctx.restore();
+    title(ctx,`${UA.H} hidden ${UA.act==='relu'?'ReLU':'sigmoid'} unit${UA.H>1?'s':''} · max error ${fmt(R.err,3)}`);
+  }
+  { const {ctx,w,h}=prep($('#cv-ua-err')), lg=x=>Math.log10(Math.max(x,1e-4)), E=UA.cache;
+    const v=makeView2(w,h,0,41,Math.floor(Math.min(...E.map(lg))),Math.max(0.3,Math.ceil(Math.max(...E.map(lg))*2)/2),{l:44,r:14,t:30,b:24});
+    drawAxes2(ctx,v,w,h,'hidden units H','max error',{logY:true,xStep:10});
+    clipPlot(ctx,v,w,h);
+    line(ctx,E.map((e,i)=>[v.X(i+1),v.Y(lg(e))]),T.acc,2.4);
+    ctx.restore();
+    dotAt(ctx,v.X(UA.H),v.Y(lg(E[UA.H-1])),T.v2,6);
+    title(ctx,'More units, smaller worst-case error');
+  }
+  set('ua-stats', stats([
+    ['hidden units H', UA.H],
+    ['max error', fmt(R.err,4)],
+    ['output weights', `${UA.H+1} (incl. bias b)`],
+    ['largest |vⱼ|', fmt(Math.max(...R.c.slice(1).map(Math.abs)),2)],
+  ]));
+}
+bindSeg('ua-f', v=>{ UA.f=v; UA.cache=null; drawApprox(); });
+bindSeg('ua-act', v=>{ UA.act=v; UA.cache=null; $('#ua-k').disabled=v==='relu'; drawApprox(); });
+bindRange('ua-h', v=>v, v=>{ UA.H=v; drawApprox(); });
+bindRange('ua-k', v=>fmt(v,2), v=>{ UA.k=v; UA.cache=null; drawApprox(); });
+$('#ua-parts').addEventListener('change',e=>{ UA.parts=e.target.checked; drawApprox(); });
+
+/* =====================================================================
+   5.1 1D convolution: flip, slide, multiply, add
+   ===================================================================== */
+const C1_F = {
+  pulse: n=>n>=6&&n<=13?1:0,
+  steps: n=>n<8?0.3:n<16?1:0.5,
+  noisy: (()=>{ const r=rng(8), v=[...Array(24)].map((_,n)=>0.55+0.35*Math.sin(n/3.2)+0.25*gauss(r)); return n=>v[n]; })(),
+  spike: n=>n===5?1:n===12?1:n===18?-0.7:0,
+};
+const C1_G = { box:[0.2,0.2,0.2,0.2,0.2], tri:[1,2,3,2,1].map(x=>x/9), decay:[1,0.6,0.36,0.22,0.13].map(x=>x/2.31), diff:[1,-1] };
+const C1 = { f:'pulse', g:'box', flip:true, m:10, N:24 };
+const c1Out = m => { const g=C1_G[C1.g], K=g.length; let s=0; for (let i=0;i<K;i++){ const n=m-K+1+i; if (n>=0&&n<C1.N) s+=C1_F[C1.f](n)*(C1.flip?g[K-1-i]:g[i]); } return s; };
+function c1Max(){ return C1.N+C1_G[C1.g].length-2; }
+function drawConv1d(){
+  const g=C1_G[C1.g], K=g.length, M=c1Max(); C1.m=Math.min(C1.m,M);
+  const el=$('#c1-m'); el.max=M; el.value=C1.m; $('#c1-m-o').textContent=C1.m;
+  const {ctx,w,h}=prep($('#cv-c1')), L=46, R=14, n0=-(K-1), n1=C1.N+K-2;
+  const X=n=>L+(n-n0+0.5)*(w-L-R)/(n1-n0+1), band=(h-30)/3, rows=[30, 30+band, 30+2*band];
+  const fmax=1.1, gmax=Math.max(...g.map(Math.abs))*1.15;
+  // overlap window
+  const lo=C1.m-K+1, hi=C1.m;
+  ctx.fillStyle=T['acc-soft']; ctx.fillRect(X(lo)-(X(1)-X(0))/2, rows[0], (X(hi)-X(lo))+(X(1)-X(0)), band*2-6);
+  const stems=(r, vals, col, vmax, ring, faint)=>{
+    const y0=r+band*0.62, sc=band*0.48/vmax;
+    ctx.strokeStyle=T.rule; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(L,y0); ctx.lineTo(w-R,y0); ctx.stroke();
+    vals.forEach(([n,v,hl])=>{ const x=X(n), y=y0-v*sc; ctx.strokeStyle=faint?rgba(RGB.one,.4):col; ctx.lineWidth=hl?2.4:1.6; ctx.beginPath(); ctx.moveTo(x,y0); ctx.lineTo(x,y); ctx.stroke();
+      if (faint) { ctx.beginPath(); ctx.arc(x,y,2.5,0,TAU); ctx.fillStyle=rgba(RGB.one,.4); ctx.fill(); } else dotAt(ctx,x,y,col,hl?4.5:3.5,ring); });
+  };
+  const small=w<620;
+  stems(rows[0], [...Array(C1.N)].map((_,n)=>[n,C1_F[C1.f](n),n>=lo&&n<=hi]), T.v1, fmax);
+  label(ctx,'f(n)',8,rows[0]+band*0.3,T.v1,F.lab);
+  const gv=[]; for (let i=0;i<K;i++) gv.push([lo+i, C1.flip?g[K-1-i]:g[i], true]);
+  stems(rows[1], gv, T.v2, gmax);
+  label(ctx,C1.flip?'g(m−n)':'g(n−m)',8,rows[1]+band*0.3,T.v2,small?F.small:F.lab);
+  const outs=[]; for (let m=0;m<=M;m++) outs.push(m);
+  { const y0=rows[2]+band*0.62, om=Math.max(1e-6,...outs.map(m=>Math.abs(c1Out(m))))*1.15, sc=band*0.48/om;
+    ctx.strokeStyle=T.rule; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(L,y0); ctx.lineTo(w-R,y0); ctx.stroke();
+    outs.forEach(m=>{ const v=c1Out(m), x=X(m), y=y0-v*sc, done=m<=C1.m;
+      ctx.strokeStyle=done?T.acc:rgba(RGB.one,.3); ctx.lineWidth=m===C1.m?2.6:1.5; ctx.beginPath(); ctx.moveTo(x,y0); ctx.lineTo(x,y); ctx.stroke();
+      if (done) dotAt(ctx,x,y,T.acc,m===C1.m?5:3.5); });
+  }
+  label(ctx,'(f∗g)(m)',8,rows[2]+band*0.3,T.acc,small?F.small:F.lab);
+  ctx.font=F.small; ctx.fillStyle=T.muted; ctx.textAlign='center'; ctx.textBaseline='top';
+  for (let n=Math.ceil(n0/4)*4;n<=n1;n+=4) ctx.fillText(n,X(n),h-12);
+  title(ctx,`m = ${C1.m}: the kernel covers n = ${lo}…${hi}`);
+  const terms=[]; for (let i=0;i<K;i++){ const n=lo+i; if (n<0||n>=C1.N) continue; const gi=C1.flip?K-1-i:i; terms.push(`f(${n})·g(${C1.flip?C1.m-n:n-lo}) = ${fmt(C1_F[C1.f](n))}×${fmt(g[gi])}`); }
+  set('c1-sum', `(f∗g)(${C1.m}) = ${terms.length?terms.join(' + '):'0 (no overlap)'}<br>= <b class="ca">${fmt(c1Out(C1.m),3)}</b>`);
+}
+bindSeg('c1-f', v=>{ C1.f=v; drawConv1d(); });
+bindSeg('c1-g', v=>{ C1.g=v; drawConv1d(); });
+$('#c1-flip').addEventListener('change',e=>{ C1.flip=e.target.checked; drawConv1d(); });
+bindRange('c1-m', v=>v, v=>{ stop('c1'); C1.m=v; drawConv1d(); });
+$('#c1-play').addEventListener('click',e=>{ if (C1.m>=c1Max()) C1.m=0; run('c1',e.target,()=>{ C1.m++; drawConv1d(); return C1.m<c1Max(); },220,['Slide','Pause']); });
+draggable($('#cv-c1'),(px)=>{ stop('c1'); const cv=$('#cv-c1'), K=C1_G[C1.g].length, n0=-(K-1), n1=C1.N+K-2;
+  const f=x=>{ const n=Math.round((x-46)/((cv.clientWidth-60)/(n1-n0+1))-0.5+n0); C1.m=clamp(n,0,c1Max()); drawConv1d(); }; f(px); return f; });
+
+/* =====================================================================
+   5.2 Image filters
+   ===================================================================== */
+const FI_N = 28;
+const KERNELS = { id:[0,0,0,0,1,0,0,0,0], box:Array(9).fill(1/9), w5:[1,1,1,1,5,1,1,1,1].map(x=>x/13), sharp:[0,-1,0,-1,5,-1,0,-1,0], sx:[-1,0,1,-2,0,2,-1,0,1], sy:[-1,-2,-1,0,0,0,1,2,1], lap:[0,1,0,1,-4,1,0,1,0] };
+const FI = { img:null, kind:'seven', K:KERNELS.box.slice(), rep:1, hover:[16,13] };
+function segDist(px,py,a,b){ const dx=b[0]-a[0], dy=b[1]-a[1], t=clamp(((px-a[0])*dx+(py-a[1])*dy)/(dx*dx+dy*dy),0,1); return Math.hypot(px-a[0]-t*dx,py-a[1]-t*dy); }
+function fiMake(kind){
+  const N=FI_N, I=new Float64Array(N*N), r=rng(3);
+  for (let y=0;y<N;y++) for (let x=0;x<N;x++){
+    let v=0;
+    if (kind==='seven'){ const d=Math.min(segDist(x,y,[7,6],[21,6]),segDist(x,y,[21,6],[12,23])); v=clamp(1.7-d,0,1); }
+    else if (kind==='shapes'){ if (x>=3&&x<=11&&y>=3&&y<=11) v=1; if (Math.hypot(x-19,y-8)<=4.5) v=0.7; if (Math.abs(y-(x*0.5+12))<1 && x<26) v=1; if (y>=21&&y<=25&&x>=3) v=Math.max(v,(x-3)/24); }
+    else if (kind==='noise'){ v=(x>=8&&x<=19&&y>=8&&y<=19?0.8:0.15)+0.22*gauss(r); }
+    I[y*N+x]=clamp(v,0,1);
+  }
+  FI.img=I; FI.kind=kind;
+}
+function fiConv(I){
+  const N=FI_N, O=new Float64Array(N*N), K=FI.K;
+  for (let y=0;y<N;y++) for (let x=0;x<N;x++){ let s=0; for (let m=-1;m<=1;m++) for (let n=-1;n<=1;n++){ const yy=y+m, xx=x+n; if (yy>=0&&yy<N&&xx>=0&&xx<N) s+=I[yy*N+xx]*K[(m+1)*3+n+1]; } O[y*N+x]=s; }
+  return O;
+}
+function fiGeom(cv){ const w=cv.clientWidth, h=cv.clientHeight, s=Math.floor(Math.min(w-20,h-40)/FI_N); return { s, x0:Math.round((w-s*FI_N)/2), y0:Math.round(30+(h-30-s*FI_N)/2) }; }
+function fiGridUI(){ $('#fi-grid').innerHTML = FI.K.map((k,i)=>`<input type="number" step="0.1" id="fi-k${i}" aria-label="kernel cell ${i+1}" value="${+k.toFixed(3)}">`).join(''); }
+function drawFilters(){
+  if (!FI.img) fiMake('seven');
+  let O=FI.img; for (let r=0;r<FI.rep;r++) O=fiConv(O);
+  const signed=FI.K.some(k=>k<0), N=FI_N;
+  { const cv=$('#cv-fi-in'), {ctx,w,h}=prep(cv), g=fiGeom(cv);
+    for (let y=0;y<N;y++) for (let x=0;x<N;x++){ ctx.fillStyle=rgba(mix(RGB.panel,RGB.ink,FI.img[y*N+x])); ctx.fillRect(g.x0+x*g.s,g.y0+y*g.s,g.s,g.s); }
+    ctx.strokeStyle=T.rule; ctx.lineWidth=1; ctx.strokeRect(g.x0-.5,g.y0-.5,g.s*N+1,g.s*N+1);
+    if (FI.hover){ const [hx,hy]=FI.hover, rr=FI.rep; ctx.strokeStyle=T.acc; ctx.lineWidth=2.5; ctx.fillStyle=T['acc-soft'];
+      const X0=g.x0+(hx-rr)*g.s, Y0=g.y0+(hy-rr)*g.s, S=(2*rr+1)*g.s; ctx.fillRect(X0,Y0,S,S); ctx.strokeRect(X0,Y0,S,S); }
+    title(ctx,`input ${N}×${N}`);
+  }
+  { const cv=$('#cv-fi-out'), {ctx,w,h}=prep(cv), g=fiGeom(cv);
+    const mx=Math.max(1e-9,...O.map(Math.abs));
+    for (let y=0;y<N;y++) for (let x=0;x<N;x++){ const v=O[y*N+x];
+      ctx.fillStyle = signed ? rgba(v>=0?mix(RGB.panel,RGB.v1,v/mx):mix(RGB.panel,RGB.v2,-v/mx)) : rgba(mix(RGB.panel,RGB.ink,clamp(v/Math.max(1,mx),0,1)));
+      ctx.fillRect(g.x0+x*g.s,g.y0+y*g.s,g.s,g.s); }
+    ctx.strokeStyle=T.rule; ctx.lineWidth=1; ctx.strokeRect(g.x0-.5,g.y0-.5,g.s*N+1,g.s*N+1);
+    if (FI.hover){ ctx.strokeStyle=T.acc; ctx.lineWidth=2.5; ctx.strokeRect(g.x0+FI.hover[0]*g.s,g.y0+FI.hover[1]*g.s,g.s,g.s); }
+    title(ctx,`output S${FI.rep>1?` after ${FI.rep} passes`:''}${signed?` · range ±${fmt(mx,2)}`:''}`);
+  }
+  if (FI.hover && FI.rep===1){
+    const [hx,hy]=FI.hover, terms=[];
+    for (let m=-1;m<=1;m++) for (let n=-1;n<=1;n++){ const yy=hy+m, xx=hx+n, k=FI.K[(m+1)*3+n+1]; if (k===0) continue; const v=(yy>=0&&yy<N&&xx>=0&&xx<N)?FI.img[yy*N+xx]:0; terms.push(`${fmt(v)}×${fmt(k,2)}`); }
+    set('fi-sum', `S(${hy}, ${hx}) = ${terms.join(' + ')||'0'}<br>= <b class="ca">${fmt(O[hy*N+hx],3)}</b>`);
+  } else set('fi-sum', FI.hover ? `S(${FI.hover[1]}, ${FI.hover[0]}) = <b class="ca">${fmt(O[FI.hover[1]*N+FI.hover[0]],3)}</b> after ${FI.rep} passes; the shaded input block is its ${2*FI.rep+1}×${2*FI.rep+1} receptive field.` : '<span style="font-family:var(--f-body);color:var(--muted)">Hover a pixel of the output.</span>');
+}
+bindSeg('fi-k', v=>{ FI.K=KERNELS[v].slice(); fiGridUI(); drawFilters(); });
+bindSeg('fi-img', v=>{ fiMake(v); drawFilters(); });
+bindRange('fi-rep', v=>v+'×', v=>{ FI.rep=v; drawFilters(); });
+$('#fi-grid').addEventListener('input',e=>{ const i=+e.target.id.replace('fi-k',''); if (e.target.value!==''&&isFinite(+e.target.value)){ FI.K[i]=+e.target.value; pressSeg('fi-k',''); drawFilters(); } });
+{ const cv=$('#cv-fi-out'); cv.style.touchAction='auto';
+  const hov=e=>{ const g=fiGeom(cv), [px,py]=ptr(cv,e), x=Math.floor((px-g.x0)/g.s), y=Math.floor((py-g.y0)/g.s); FI.hover=(x>=0&&y>=0&&x<FI_N&&y<FI_N)?[x,y]:null; drawFilters(); };
+  cv.addEventListener('pointermove',hov); cv.addEventListener('pointerdown',hov); cv.addEventListener('pointerleave',e=>{ if (e.pointerType==='mouse'){ FI.hover=null; drawFilters(); } });
+  const ci=$('#cv-fi-in');
+  draggable(ci,(px,py)=>{ const paint=(x,y)=>{ const g=fiGeom(ci), gx=(x-g.x0)/g.s-0.5, gy=(y-g.y0)/g.s-0.5;
+      for (let yy=Math.floor(gy-2);yy<=gy+2;yy++) for (let xx=Math.floor(gx-2);xx<=gx+2;xx++){ if (yy<0||xx<0||yy>=FI_N||xx>=FI_N) continue; const d=Math.hypot(xx-gx,yy-gy); FI.img[yy*FI_N+xx]=Math.max(FI.img[yy*FI_N+xx],clamp(1.6-d,0,1)); }
+      drawFilters(); }; paint(px,py); return paint; });
+}
+fiGridUI();
+
+/* =====================================================================
+   5.3 Padding and stride
+   ===================================================================== */
+const ST = { n:7, k:3, p:0, s:1, pos:0, inp:null };
+function stIn(){ const r=rng(21); ST.inp=[...Array(9)].map(()=>[...Array(9)].map(()=>Math.floor(r()*4))); }
+const stKer = (m,n) => ((m+2*n)%3)-1;
+const stOut = () => Math.floor((ST.n+2*ST.p-ST.k)/ST.s)+1;
+const stAt = (y,x) => { const yy=y-ST.p, xx=x-ST.p; return (yy>=0&&xx>=0&&yy<ST.n&&xx<ST.n)?ST.inp[yy][xx]:0; };
+function stVal(r,c){ let s=0; for (let m=0;m<ST.k;m++) for (let n=0;n<ST.k;n++) s+=stAt(r*ST.s+m,c*ST.s+n)*stKer(m,n); return s; }
+function gridGeom(cv,N){ const w=cv.clientWidth, h=cv.clientHeight, s=Math.min(46,Math.floor(Math.min(w-24,h-44)/N)); return { s, x0:Math.round((w-s*N)/2), y0:Math.round(32+(h-32-s*N)/2) }; }
+function drawStride(){
+  const o=stOut(), P=ST.n+2*ST.p; ST.pos=Math.min(ST.pos,Math.max(0,o*o-1));
+  const r=Math.floor(ST.pos/Math.max(1,o)), c=ST.pos%Math.max(1,o);
+  { const cv=$('#cv-st-in'), {ctx,w,h}=prep(cv), g=gridGeom(cv,P);
+    for (let y=0;y<P;y++) for (let x=0;x<P;x++){
+      const pad=y<ST.p||x<ST.p||y>=ST.p+ST.n||x>=ST.p+ST.n, X=g.x0+x*g.s, Y=g.y0+y*g.s;
+      ctx.fillStyle=pad?T.grid:T.panel; ctx.fillRect(X,Y,g.s,g.s); ctx.strokeStyle=T.rule; ctx.lineWidth=1; ctx.strokeRect(X+.5,Y+.5,g.s-1,g.s-1);
+      if (g.s>=16) label(ctx,String(stAt(y,x)),X+g.s/2,Y+g.s/2,pad?T.muted:T.ink,g.s>=30?F.num:F.small,'center'); }
+    if (o>0){ const X=g.x0+c*ST.s*g.s, Y=g.y0+r*ST.s*g.s, S=ST.k*g.s;
+      ctx.fillStyle=T['acc-soft']; ctx.fillRect(X,Y,S,S); ctx.strokeStyle=T.acc; ctx.lineWidth=3; ctx.strokeRect(X+1.5,Y+1.5,S-3,S-3);
+      if (g.s>=26) for (let m=0;m<ST.k;m++) for (let n=0;n<ST.k;n++) label(ctx,(stKer(m,n)<0?'−':'')+(Math.abs(stKer(m,n))?'1':'0'),X+n*g.s+g.s-5,Y+m*g.s+8,T.acc,F.small,'right'); }
+    title(ctx,`${ST.n}×${ST.n} input, padded to ${P}×${P}`);
+  }
+  { const cv=$('#cv-st-out'), {ctx,w,h}=prep(cv);
+    if (o<=0){ title(ctx,'Kernel larger than the padded input: no output'); }
+    else { const g=gridGeom(cv,Math.max(o,3));
+      const x0=Math.round((w-g.s*o)/2);
+      for (let y=0;y<o;y++) for (let x=0;x<o;x++){ const k=y*o+x, X=x0+x*g.s, Y=g.y0+y*g.s;
+        ctx.fillStyle=k===ST.pos?T['acc-soft']:T.panel; ctx.fillRect(X,Y,g.s,g.s);
+        ctx.strokeStyle=k===ST.pos?T.acc:T.rule; ctx.lineWidth=k===ST.pos?2.5:1; ctx.strokeRect(X+.5,Y+.5,g.s-1,g.s-1);
+        if (k<=ST.pos && g.s>=16) label(ctx,fmt(stVal(y,x),0),X+g.s/2,Y+g.s/2,k===ST.pos?T.acc:T.ink,g.s>=30?F.num:F.small,'center'); }
+      cv._g={x0,y0:g.y0,s:g.s,o};
+      title(ctx,`${o}×${o} output`); }
+  }
+  { const {ctx,w,h}=prep($('#cv-st-depth')), n0=32, Lyr=6, f=(n,p,s)=>Math.floor((n+2*p-ST.k)/s)+1;
+    const a=[n0], b=[n0]; for (let i=0;i<Lyr;i++){ a.push(Math.max(0,f(a[i],ST.p,ST.s))); b.push(Math.max(0,f(b[i],0,1))); }
+    const v=makeView2(w,h,-0.6,Lyr+0.6,0,n0*1.12,{l:36,r:14,t:30,b:24});
+    drawAxes2(ctx,v,w,h,'layer','size n',{xStep:1});
+    const bw=(v.X(1)-v.X(0))*0.36;
+    for (let i=0;i<=Lyr;i++){ ctx.fillStyle=T.one; ctx.globalAlpha=0.45; ctx.fillRect(v.X(i)-bw,v.Y(b[i]),bw,v.Y(0)-v.Y(b[i])); ctx.globalAlpha=1;
+      ctx.fillStyle=T.acc; ctx.fillRect(v.X(i),v.Y(a[i]),bw,v.Y(0)-v.Y(a[i]));
+      if (bw>=9) label(ctx,String(a[i]),v.X(i)+bw/2,v.Y(a[i])-8,T.acc,F.small,'center'); }
+    title(ctx,'A 32×32 input through 6 such layers');
+  }
+  set('st-stats', stats([
+    ['output size', o>0?`⌊(${ST.n} + 2·${ST.p} − ${ST.k}) / ${ST.s}⌋ + 1 = ${o}`:'none'],
+    ['positions visited', o>0?o*o:0],
+    ['multiply-adds', o>0?o*o*ST.k*ST.k:0],
+    ['size kept?', o===ST.n?pill('good','same size'):o<ST.n?pill('warn',`shrinks by ${ST.n-o}`):pill('info','grows')],
+  ]));
+}
+['n','k','p','s'].forEach(key=>bindRange('st-'+key, v=>v, v=>{ stop('st'); ST[key]=v; ST.pos=0; drawStride(); }));
+$('#st-play').addEventListener('click',e=>{ const o=stOut(); if (ST.pos>=o*o-1) ST.pos=0; run('st',e.target,()=>{ ST.pos++; drawStride(); return ST.pos<stOut()**2-1; },300,['Slide','Pause']); });
+$('#cv-st-out').addEventListener('click',e=>{ const c=e.currentTarget, g=c._g; if (!g) return; const [px,py]=ptr(c,e), x=Math.floor((px-g.x0)/g.s), y=Math.floor((py-g.y0)/g.s); if (x>=0&&y>=0&&x<g.o&&y<g.o){ stop('st'); ST.pos=y*g.o+x; drawStride(); } });
+stIn();
+
+/* =====================================================================
+   5.4 Pooling
+   ===================================================================== */
+const PO = { N:12, type:'max', q:2, blobs:null, off:[0,0], prev:null, prevIn:null, seed:2, hover:null };
+function poNew(){ const r=rng(++PO.seed); PO.blobs=[...Array(4)].map(()=>[1+Math.floor(r()*10),1+Math.floor(r()*10),0.6+0.4*r()]); PO.off=[0,0]; PO.prev=null; PO.prevIn=null; }
+function poMap(){ const N=PO.N, M=[]; for (let y=0;y<N;y++){ const row=[]; for (let x=0;x<N;x++){ let v=0; PO.blobs.forEach(([bx,by,a])=>{ const dx=x-bx-PO.off[0], dy=y-by-PO.off[1]; v=Math.max(v, a*(dx===0&&dy===0?1:Math.abs(dx)+Math.abs(dy)===1?0.45:0)); }); row.push(v); } M.push(row); } return M; }
+function poPool(M){ const q=PO.q, n=Math.floor(PO.N/q), P=[], A=[];
+  for (let i=0;i<n;i++){ const pr=[], ar=[]; for (let j=0;j<n;j++){ let best=-1, at=[0,0], sum=0;
+    for (let a=0;a<q;a++) for (let b=0;b<q;b++){ const v=M[i*q+a][j*q+b]; sum+=v; if (v>best){ best=v; at=[i*q+a,j*q+b]; } }
+    pr.push(PO.type==='max'?best:sum/(q*q)); ar.push(at); } P.push(pr); A.push(ar); }
+  return {P,A}; }
+function drawPool(){
+  const M=poMap(), {P,A}=poPool(M), q=PO.q, n=P.length;
+  { const cv=$('#cv-po-in'), {ctx,w,h}=prep(cv), g=gridGeom(cv,PO.N);
+    for (let y=0;y<PO.N;y++) for (let x=0;x<PO.N;x++){ ctx.fillStyle=rgba(mix(RGB.panel,RGB.v1,M[y][x]*0.9)); ctx.fillRect(g.x0+x*g.s,g.y0+y*g.s,g.s,g.s); }
+    ctx.strokeStyle=T.grid; ctx.lineWidth=1; for (let i=0;i<=PO.N;i++){ ctx.beginPath(); ctx.moveTo(g.x0+i*g.s+.5,g.y0); ctx.lineTo(g.x0+i*g.s+.5,g.y0+PO.N*g.s); ctx.moveTo(g.x0,g.y0+i*g.s+.5); ctx.lineTo(g.x0+PO.N*g.s,g.y0+i*g.s+.5); ctx.stroke(); }
+    ctx.strokeStyle=T.ink; ctx.lineWidth=1.6; for (let i=0;i<=n;i++){ ctx.beginPath(); ctx.moveTo(g.x0+i*q*g.s,g.y0); ctx.lineTo(g.x0+i*q*g.s,g.y0+n*q*g.s); ctx.moveTo(g.x0,g.y0+i*q*g.s); ctx.lineTo(g.x0+n*q*g.s,g.y0+i*q*g.s); ctx.stroke(); }
+    if (PO.type==='max') A.forEach(r=>r.forEach(([y,x])=>{ if (M[y][x]>0) ringAt(ctx,g.x0+(x+.5)*g.s,g.y0+(y+.5)*g.s,T.acc,g.s*0.32,2); }));
+    if (PO.hover){ const [hy,hx]=PO.hover; ctx.strokeStyle=T.acc; ctx.lineWidth=3; ctx.strokeRect(g.x0+hx*q*g.s,g.y0+hy*q*g.s,q*g.s,q*g.s); }
+    title(ctx,`${PO.N}×${PO.N} feature map · shifted (${PO.off[0]}, ${PO.off[1]})`);
+  }
+  { const cv=$('#cv-po-out'), {ctx,w,h}=prep(cv), g=gridGeom(cv,n);
+    for (let y=0;y<n;y++) for (let x=0;x<n;x++){ const X=g.x0+x*g.s, Y=g.y0+y*g.s;
+      ctx.fillStyle=rgba(mix(RGB.panel,RGB.v1,P[y][x]*0.9)); ctx.fillRect(X,Y,g.s,g.s);
+      ctx.strokeStyle=T.rule; ctx.lineWidth=1; ctx.strokeRect(X+.5,Y+.5,g.s-1,g.s-1);
+      if (g.s>=26) label(ctx,fmt(P[y][x],2),X+g.s/2,Y+g.s/2,T.ink,F.small,'center');
+      if (PO.prev){ const same=Math.abs(PO.prev[y][x]-P[y][x])<1e-9; if (P[y][x]>0||PO.prev[y][x]>0) { ctx.strokeStyle=same?T.ok:T.bad; ctx.lineWidth=2.5; ctx.strokeRect(X+3,Y+3,g.s-6,g.s-6); } } }
+    if (PO.hover){ const [hy,hx]=PO.hover; ctx.strokeStyle=T.acc; ctx.lineWidth=3; ctx.strokeRect(g.x0+hx*g.s,g.y0+hy*g.s,g.s,g.s); }
+    cv._g={...g,n};
+    title(ctx,`${n}×${n} after ${PO.type} pooling`);
+  }
+  let si='—', so='—';
+  if (PO.prev && PO.prevIn){
+    const act=(a,b)=>a>0||b>0;
+    let ti=0, ci=0; for (let y=0;y<PO.N;y++) for (let x=0;x<PO.N;x++) if (act(PO.prevIn[y][x],M[y][x])){ ti++; if (Math.abs(PO.prevIn[y][x]-M[y][x])>1e-9) ci++; }
+    let to=0, co=0; for (let y=0;y<n;y++) for (let x=0;x<n;x++) if (act(PO.prev[y][x],P[y][x])){ to++; if (Math.abs(PO.prev[y][x]-P[y][x])>1e-9) co++; }
+    si=`${ci} of ${ti} (${fmt(100*ci/Math.max(1,ti),0)}%)`; so=`${co} of ${to} (${fmt(100*co/Math.max(1,to),0)}%)`;
+  }
+  set('po-stats', stats([
+    ['active input cells changed by the shift', si],
+    ['active pooled cells changed', so],
+    ['map size', `${PO.N}×${PO.N} → ${n}×${n}`],
+  ]));
+}
+bindSeg('po-type', v=>{ PO.type=v; PO.prev=null; drawPool(); });
+bindSeg('po-q', v=>{ PO.q=+v; PO.prev=null; drawPool(); });
+$$('[data-shift]').forEach(b=>b.addEventListener('click',()=>{ const [dx,dy]=b.dataset.shift.split(',').map(Number), M=poMap(); PO.prevIn=M; PO.prev=poPool(M).P; PO.off=[clamp(PO.off[0]+dx,-1,1),clamp(PO.off[1]+dy,-1,1)]; drawPool(); }));
+$('#po-new').addEventListener('click',()=>{ poNew(); drawPool(); });
+{ const cv=$('#cv-po-out'); cv.style.touchAction='auto';
+  cv.addEventListener('pointermove',e=>{ const g=cv._g; if (!g) return; const [px,py]=ptr(cv,e), x=Math.floor((px-g.x0)/g.s), y=Math.floor((py-g.y0)/g.s); const hv=(x>=0&&y>=0&&x<g.n&&y<g.n)?[y,x]:null; if (String(hv)!==String(PO.hover)){ PO.hover=hv; drawPool(); } });
+  cv.addEventListener('pointerleave',()=>{ PO.hover=null; drawPool(); }); }
+poNew();
+
+/* =====================================================================
+   5.5 Receptive field and parameter sharing
+   ===================================================================== */
+const RF = { k:3, L:3, s:1, sel:null, n:32, ci:3, co:16, pk:3 };
+function rfLayers(){
+  let top=9, sizes;
+  for (;;){ sizes=[top]; for (let l=0;l<RF.L;l++) sizes.unshift((sizes[0]-1)*RF.s+RF.k); if (sizes[0]<=48 || top===1) break; top--; }
+  return sizes; // sizes[0] = input, sizes[L] = top
+}
+function drawRfield(){
+  const sizes=rfLayers(), L=RF.L; if (RF.sel===null || RF.sel>=sizes[L]) RF.sel=Math.floor(sizes[L]/2);
+  { const cv=$('#cv-rf'), {ctx,w,h}=prep(cv), n0=sizes[0], padX=24;
+    const X=u=>padX+(u+0.5)*(w-2*padX)/n0, Y=l=>h-24-l*(h-80)/Math.max(1,L);
+    const stride=l=>Math.pow(RF.s,l), rfl=[1]; for (let l=1;l<=L;l++) rfl.push(rfl[l-1]+(RF.k-1)*stride(l-1));
+    const centre=(l,i)=>i*stride(l)+(rfl[l]-1)/2;
+    const hl=[]; hl[L]=new Set([RF.sel]); for (let l=L;l>0;l--){ hl[l-1]=new Set(); hl[l].forEach(i=>{ for (let j=0;j<RF.k;j++) hl[l-1].add(i*RF.s+j); }); }
+    const rad=Math.max(2,Math.min(7,(w-2*padX)/n0*0.32));
+    for (let l=1;l<=L;l++) for (let i=0;i<sizes[l];i++) for (let j=0;j<RF.k;j++){ const on=hl[l].has(i);
+      ctx.strokeStyle=on?T.acc:rgba(RGB.one,.18); ctx.lineWidth=on?1.6:1; ctx.beginPath(); ctx.moveTo(X(centre(l,i)),Y(l)); ctx.lineTo(X(centre(l-1,i*RF.s+j)),Y(l-1)); ctx.stroke(); }
+    for (let l=0;l<=L;l++){ for (let i=0;i<sizes[l];i++){ const on=hl[l].has(i); ctx.beginPath(); ctx.arc(X(centre(l,i)),Y(l),on?rad+1:rad,0,TAU); ctx.fillStyle=on?T.acc:T.panel; ctx.fill(); ctx.lineWidth=1.2; ctx.strokeStyle=on?T.acc:T.muted; ctx.stroke(); }
+      label(ctx,l?`layer ${l}`:'input',6,Y(l)-12,T.muted,F.small); }
+    cv._hit={ X, Y, centre, top:sizes[L], L };
+    title(ctx,`receptive field of the selected unit: ${rfl[L]} input units`);
+  }
+  { const {ctx,w,h}=prep($('#cv-rf-params')), n=RF.n, ci=RF.ci, co=RF.co, k=RF.pk;
+    const rows=[['fully connected',(n*n*ci)*(n*n*co),'v2'],['locally connected',n*n*co*(k*k*ci+1),'v1'],['convolution',co*(k*k*ci+1),'acc']];
+    const mx=Math.ceil(Math.log10(Math.max(...rows.map(r=>r[1]))))+0.3;
+    const v=makeView2(w,h,0,mx,0,3,{l:16,r:16,t:30,b:24}), bh=(v.Y(0)-v.Y(1))*0.5;
+    drawAxes2(ctx,v,w,h,'parameters (log₁₀)','',{xStep:Math.max(1,Math.ceil(mx/6)),xFmt:x=>logFmt(x)});
+    rows.forEach(([nm,c,col],i)=>{ const y=v.Y(2.5-i)-bh/2, x1=v.X(Math.log10(c));
+      ctx.fillStyle=T[col]; ctx.fillRect(v.X(0),y,Math.max(2,x1-v.X(0)),bh);
+      const txt=`${nm}: ${compact(c)}`; ctx.font=F.num; const inside=x1-v.X(0)>ctx.measureText(txt).width+16;
+      if (inside){ ctx.textAlign='left'; ctx.textBaseline='middle'; ctx.fillStyle=T.panel; ctx.fillText(txt,v.X(0)+8,y+bh/2); } else label(ctx,txt,x1+6,y+bh/2,T.ink,F.num,'left'); });
+    title(ctx,`${n}×${n}×${ci} → ${n}×${n}×${co}, ${k}×${k} kernels`);
+  }
+}
+['k','l','s'].forEach(key=>bindRange('rf-'+key, v=>v, v=>{ RF[key==='l'?'L':key]=v; RF.sel=null; drawRfield(); }));
+bindRange('rf-n', v=>v, v=>{ RF.n=v; drawRfield(); });
+bindRange('rf-ci', v=>v, v=>{ RF.ci=v; drawRfield(); });
+bindRange('rf-co', v=>v, v=>{ RF.co=v; drawRfield(); });
+bindRange('rf-pk', v=>`${v}×${v}`, v=>{ RF.pk=v; drawRfield(); });
+$('#cv-rf').addEventListener('click',e=>{ const c=e.currentTarget, g=c._hit; if (!g) return; const [px,py]=ptr(c,e); if (Math.abs(py-g.Y(g.L))>24) return;
+  let best=0, bd=1e9; for (let i=0;i<g.top;i++){ const d=Math.abs(g.X(g.centre(g.L,i))-px); if (d<bd){ bd=d; best=i; } } RF.sel=best; drawRfield(); });
+
+/* =====================================================================
+   topic list, theme, resize
+   ===================================================================== */
+const DRAW = { linreg:drawLinreg, linclf:drawLinclf, overfit:drawOverfit, cv:drawCV, perceptron:drawPerceptron, boolean:drawBoolean, adaline:drawAdaline, activ:drawActiv, backprop:drawBackprop, minima:drawMinima, mlp:drawMLP, approx:drawApprox, conv1d:drawConv1d, filters:drawFilters, stride:drawStride, pool:drawPool, rfield:drawRfield };
+/* Topic list: one entry per lecture; add a lecture by adding a row here and its panels above */
+const CHAPS = [
+  { n:2, t:'Linear regression & classification', items:[['linreg','2.1','Fitting a line by GD'],['linclf','2.2','Score, margin & hinge']] },
+  { n:3, t:'Model selection', items:[['overfit','3.1','Overfitting & bias–variance'],['cv','3.2','k-fold cross-validation']] },
+  { n:4, t:'Neural networks', items:[['perceptron','4.1','Perceptron learning'],['boolean','4.2','AND, OR, XOR'],['adaline','4.3','Learning rate & SGD'],['activ','4.4','Activation functions'],['backprop','4.5','Backprop on a graph'],['minima','4.6','Momentum & local minima'],['mlp','4.7','Training an MLP'],['approx','4.8','Universal approximation']] },
+  { n:5, t:'Convolutional networks', items:[['conv1d','5.1','Convolution'],['filters','5.2','Image filters'],['stride','5.3','Padding & stride'],['pool','5.4','Max pooling'],['rfield','5.5','Receptive field & sharing']] },
+];
+const ORDER = CHAPS.flatMap(c=>c.items.map(it=>({ id:it[0], sec:it[1], name:it[2], ch:c.n })));
+const esc = x => x.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+$('#toc-list').innerHTML = CHAPS.map(c=>`<div class="chap ch${c.n}" data-ch="${c.n}" data-open="false">
+  <button class="chap-h" aria-expanded="false"><span class="cn">L${c.n}</span><span>${esc(c.t)}</span><span class="chev" aria-hidden="true">▸</span></button>
+  <div class="chap-items">${c.items.map(([id,sec,nm])=>`<button class="topic" id="t-${id}" data-topic="${id}" aria-controls="${id}"><span class="sec">${sec}</span><span>${esc(nm)}</span></button>`).join('')}</div></div>`).join('');
+const side=$('.side'), sideBtn=$('.side-toggle'), find=$('#toc-find');
+function openChap(el, on){ el.dataset.open=on; el.querySelector('.chap-h').setAttribute('aria-expanded', on); }
+function setMenu(on){ side.dataset.open=on; sideBtn.setAttribute('aria-expanded', on); }
+$$('.chap-h').forEach(b=>b.addEventListener('click',()=>{ const c=b.parentElement; openChap(c, c.dataset.open!=='true'); }));
+sideBtn.addEventListener('click',()=>setMenu(side.dataset.open!=='true'));
+document.addEventListener('click',e=>{ if (side.dataset.open==='true' && !side.contains(e.target)) setMenu(false); });
+document.addEventListener('keydown',e=>{ if (e.key==='Escape' && side.dataset.open==='true'){ setMenu(false); sideBtn.focus(); } });
+find.addEventListener('input',()=>{
+  const q=find.value.trim().toLowerCase();
+  $$('.chap').forEach(c=>{
+    let any=false;
+    c.querySelectorAll('.topic').forEach(t=>{ const hit=!q || t.textContent.toLowerCase().includes(q) || c.querySelector('.chap-h').textContent.toLowerCase().includes(q); t.hidden=!hit; any=any||hit; });
+    c.hidden=!any; if (q) openChap(c, any); else openChap(c, c.contains($('.topic[aria-current="page"]')));
+  });
+});
+find.addEventListener('keydown',e=>{ if (e.key==='Enter'){ const t=$$('.topic').find(x=>!x.hidden && !x.closest('.chap').hidden); if (t) t.click(); } });
+$('#toc').addEventListener('keydown',e=>{
+  if (e.key!=='ArrowDown' && e.key!=='ArrowUp') return;
+  const vis=$$('.find, .chap-h, .topic').filter(x=>x.offsetParent!==null), i=vis.indexOf(document.activeElement);
+  if (i<0) return; e.preventDefault(); vis[(i+(e.key==='ArrowDown'?1:-1)+vis.length)%vis.length].focus();
+});
+let active='linreg';
+function show(id){
+  if (!DRAW[id]) id='linreg';
+  stopAll(); active=id;
+  $$('.topic').forEach(t=>{ if (t.dataset.topic===id) t.setAttribute('aria-current','page'); else t.removeAttribute('aria-current'); });
+  $$('.panel').forEach(p=>p.hidden = p.id!==id);
+  const k=ORDER.findIndex(o=>o.id===id), cur=ORDER[k];
+  $$('.chap').forEach(c=>{ if (+c.dataset.ch===cur.ch) openChap(c,true); });
+  $('#toc-cur').textContent=`${cur.sec} · ${cur.name}`;
+  const pv=ORDER[k-1], nx=ORDER[k+1];
+  $('#pager').innerHTML=(pv?`<button data-topic="${pv.id}"><span class="dir">← Previous</span>${pv.sec} · ${esc(pv.name)}</button>`:'')+(nx?`<button class="nx" data-topic="${nx.id}"><span class="dir">Next →</span>${nx.sec} · ${esc(nx.name)}</button>`:'');
+  try{ localStorage.setItem('glab-tab', id); }catch(e){}
+  if (location.hash.slice(1)!==id) history.replaceState(null,'','#'+id);
+  DRAW[id]();
+}
+function go(id){ show(id); setMenu(false); const top=$('.shell').getBoundingClientRect().top+window.scrollY-8; if (window.scrollY>top) window.scrollTo({top}); }
+$$('.topic').forEach(t=>t.addEventListener('click',()=>go(t.dataset.topic)));
+$('#pager').addEventListener('click',e=>{ const b=e.target.closest('[data-topic]'); if (b) go(b.dataset.topic); });
+window.addEventListener('hashchange',()=>{ const id=location.hash.slice(1); if (DRAW[id] && id!==active) show(id); });
+
+readTokens();
+let start='linreg';
+try{ start = location.hash.slice(1) || localStorage.getItem('glab-tab') || 'linreg'; }catch(e){}
+show(start);
+
+const redraw=()=>{ readTokens(); DRAW[active](); };
+if (window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', redraw);
+new MutationObserver(redraw).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+let rz; new ResizeObserver(()=>{ cancelAnimationFrame(rz); rz=requestAnimationFrame(()=>DRAW[active]()); }).observe($('.wrap'));
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(()=>DRAW[active]());
+// Hooks for scripted screenshots (harmless otherwise)
+window.GLAB = { show, DRAW, LR, LC, OF, CVS, PC, BO, AD, AC, BP, MM, MLP, UA, C1, FI, ST, PO, RF, mlpEpoch, pcStep, adStep, mmStep };
+})();
+</script>
