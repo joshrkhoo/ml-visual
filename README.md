@@ -2,7 +2,7 @@
 
 An interactive companion to **COMP 4211 Machine Learning, Lectures 2–5**: linear regression and classification (L2), model selection (L3), neural networks from the perceptron to backprop and MLPs (L4), and convolutional networks (L5). You drag points, step learning rules and train small networks, and every number on the page is recomputed live from what you see.
 
-**▶ Live demo: https://ml-visual.joshrkhoo.com** (also at https://ml-visual.vercel.app)
+**▶ Live demo: https://ml-visual.joshrkhoo.com** (also at https://ml-visual-beta.vercel.app)
 
 It's one HTML file with no install. Open `index.html` in a browser, or use the link above. Topics are listed by lecture in the sidebar (a drop-down menu on phones), with a search box and previous/next buttons. Each topic has its own link, e.g. `#backprop`.
 
